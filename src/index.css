@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  
+  /* Eduplex-inspired Academic Dashboard Palette */
+  --sidebar: #202033;
+  --sidebar-hover: #2B2B44;
+  --sidebar-text: #FFFFFF;
+  --sidebar-muted: #8E8EA0;
+  
+  --page: #F7F7F4;
+  --surface: #FFFFFF;
+  --surface-2: #F2F2EE;
+  --line: #EEEEEB;
+  --line-strong: #D5D5CE;
+  
+  --text: #20202B;
+  --text-2: #5A5A66;
+  --text-3: #85858D;
+  
+  --accent: #D7F36A;
+  --accent-hover: #C8E852;
+  --on-accent: #20202B;
+  
+  --action: #202033;
+  --action-hover: #12121E;
+  --on-action: #FFFFFF;
+  
+  --success: #268A50;
+  --success-tint: #EAF6EE;
+  --success-ink: #1C6E3E;
+  
+  --warning: #C27803;
+  --warning-tint: #FEF7EA;
+  --warning-ink: #9E5F00;
+  
+  --danger: #D32F2F;
+  --danger-tint: #FDE8E8;
+  --danger-ink: #B71C1C;
+  
+  --info: #202033;
+  --info-tint: #F2F2EE;
+  --info-ink: #202033;
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; /* oxfords-ignore */
+    color: var(--text);
+    background-color: var(--page);
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  code, pre, .font-mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-feature-settings: "tnum" on, "lnum" on;
+  }
+  
+  ::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  
+  * {
+    scrollbar-color: #D5D5CE transparent;
+  }
+}
+
+/* Minimal subtle scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5D5CE;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B0B0A8;
+}
+
+/* Physical ID Card Hanging & Pendulum Swing */
+@keyframes id-pendulum {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(2deg);
+  }
+  40% {
+    transform: rotate(-1.6deg);
+  }
+  60% {
+    transform: rotate(0.9deg);
+  }
+  80% {
+    transform: rotate(-0.5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-id-swing {
+  transform-origin: 50% -24px;
+  animation: id-pendulum 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-id-swing:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-id-swing {
+    animation: none;
+  }
+}

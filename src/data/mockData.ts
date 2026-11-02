@@ -407,7 +407,7 @@ export const ASSIGNMENTS: Assignment[] = [
     attachmentName: 'Project_4_Cockpit_Guidelines_v2.0.pdf',
     submissionsCount: 54,
     totalEnrolled: 68,
-    status: 'submitted',
+    status: 'graded',
     mySubmission: {
       submittedAt: '2026-11-02T19:40:00',
       fileName: 'Aarav_Sharma_Cockpit_Project4_Final.pdf',

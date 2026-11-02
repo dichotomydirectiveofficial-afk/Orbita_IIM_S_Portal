@@ -117,10 +117,10 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
       {/* SUB-WINDOW 1: OVERVIEW DASHBOARD COMPOSITION (Eduplex-inspired)          */}
       {/* ========================================================================= */}
       {activeLearnTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
           
-          {/* COLUMN 1: PRIMARY / LEFT COLUMN (5 cols) */}
-          <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+          {/* COLUMN 1: PRIMARY / LEFT COLUMN */}
+          <div className="space-y-6 flex flex-col">
             
             {/* Tactile All-Access Student ID Badge & Front-Facing LMS Telemetry */}
             <StudentIdBadgeCard onOpenReportTicket={onOpenReportTicket} />
@@ -236,8 +236,8 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
 
           </div>
 
-          {/* COLUMN 2: MIDDLE COLUMN (4 cols) */}
-          <div className="lg:col-span-12 xl:col-span-4 space-y-6">
+          {/* COLUMN 2: MIDDLE COLUMN */}
+          <div className="space-y-6 flex flex-col">
 
             {/* Academic Performance Overview */}
             <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
@@ -280,7 +280,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
               </div>
 
               <div className="space-y-3">
-                {timetable.slice(0, 3).map((slot) => (
+                {timetable.slice(0, 4).map((slot) => (
                   <div
                     key={slot.id}
                     className="p-3.5 rounded-xl border border-[#EEEEEB] hover:bg-[#F7F7F4]/40 transition space-y-1.5"
@@ -306,10 +306,59 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
               </div>
             </div>
 
+            {/* Evaluated Work & Faculty Feedback (Balances Column 2 height perfectly) */}
+            <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-[#20202B]">Evaluated Submissions & Feedback</h3>
+                  <p className="text-xs text-[#85858D]">Graded deliverables & faculty remarks</p>
+                </div>
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-[#EAF6EE] text-[#1C6E3E]">
+                  {assignments.filter(a => a.status === 'graded').length} Graded
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {assignments
+                  .filter((a) => a.status === 'graded' && a.mySubmission?.marksObtained !== undefined)
+                  .slice(0, 2)
+                  .map((asg) => (
+                    <div key={asg.id} className="p-3.5 rounded-xl border border-[#EEEEEB] bg-[#F7F7F4]/40 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-[#20202B] bg-white px-2 py-0.5 rounded border border-[#EEEEEB]">
+                          {asg.courseCode}
+                        </span>
+                        <div className="flex items-center space-x-1 font-mono font-bold text-[#1C6E3E]">
+                          <Award className="w-3.5 h-3.5" />
+                          <span>{asg.mySubmission?.marksObtained}</span>
+                          <span className="text-[#85858D] font-normal">/ {asg.totalMarks}</span>
+                        </div>
+                      </div>
+                      <h4 className="font-bold text-[#20202B] leading-snug line-clamp-1">{asg.title}</h4>
+                      {asg.mySubmission?.feedback && (
+                        <p className="text-[11px] text-[#5A5A66] italic bg-white p-2.5 rounded-lg border border-[#EEEEEB] leading-relaxed">
+                          "{asg.mySubmission.feedback}"
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+
+              <button
+                onClick={() => {
+                  setAssignmentFilter('graded');
+                  setActiveLearnTab('assignments');
+                }}
+                className="w-full py-2 bg-[#F7F7F4] hover:bg-[#EEEEEB] text-xs font-semibold text-[#20202B] rounded-xl transition cursor-pointer text-center"
+              >
+                View All Graded Submissions
+              </button>
+            </div>
+
           </div>
 
-          {/* COLUMN 3: RIGHT COLUMN (3 cols) */}
-          <div className="lg:col-span-12 xl:col-span-3 space-y-6">
+          {/* COLUMN 3: RIGHT COLUMN */}
+          <div className="space-y-6 flex flex-col lg:col-span-2 xl:col-span-1">
 
             {/* Compact Academic Calendar */}
             <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">

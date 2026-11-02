@@ -48,7 +48,8 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
     searchQuery,
     currentUser,
     alerts,
-    submitAssignmentWork
+    submitAssignmentWork,
+    showToast
   } = useCockpit();
 
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -73,10 +74,35 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
   // Interactive mini-calendar state
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date(2026, 10, 3)); // Nov 3, 2026
 
+  // Dynamic dining clash detection comparing lecture hours with Lunch service (12:30 - 14:00)
+  const checkDiningClash = (timeStr: string): boolean => {
+    const parts = timeStr.split('-').map(s => s.trim());
+    if (parts.length !== 2) return false;
+    const [startStr, endStr] = parts;
+    const parseMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const slotStart = parseMinutes(startStr);
+    const slotEnd = parseMinutes(endStr);
+    const lunchStart = 12 * 60 + 30; // 12:30
+    const lunchEnd = 14 * 60; // 14:00
+    return Math.max(slotStart, lunchStart) < Math.min(slotEnd, lunchEnd);
+  };
+
   const filteredCourses = courses.filter((c) => {
     const matchesCategory = courseCategoryFilter === 'all' || c.category.toLowerCase() === courseCategoryFilter.toLowerCase();
-    const matchesSearch = !searchQuery || c.title.toLowerCase().includes(searchQuery.toLowerCase()) || c.code.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    if (!matchesCategory) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = c.title.toLowerCase().includes(q);
+      const matchCode = c.code.toLowerCase().includes(q);
+      const matchInst = c.instructor.toLowerCase().includes(q);
+      const matchCat = c.category.toLowerCase().includes(q);
+      const matchDesc = c.description.toLowerCase().includes(q);
+      if (!matchTitle && !matchCode && !matchInst && !matchCat && !matchDesc) return false;
+    }
+    return true;
   });
 
   const filteredAssignments = assignments.filter((a) => {
@@ -87,8 +113,17 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
   });
 
   const filteredTimetable = timetable.filter((slot) => {
-    if (timetableDayFilter === 'All') return true;
-    return slot.day === timetableDayFilter;
+    if (timetableDayFilter !== 'All' && slot.day !== timetableDayFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchCourse = slot.courseName.toLowerCase().includes(q);
+      const matchCode = slot.courseCode.toLowerCase().includes(q);
+      const matchRoom = slot.room.toLowerCase().includes(q);
+      const matchInst = slot.instructor.toLowerCase().includes(q);
+      const matchDay = slot.day.toLowerCase().includes(q);
+      if (!matchCourse && !matchCode && !matchRoom && !matchInst && !matchDay) return false;
+    }
+    return true;
   });
 
   // Calendar days generation
@@ -643,7 +678,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => alert(`Downloading: ${item.title} (${item.fileSize || 'PDF'})`)}
+                                      onClick={() => showToast(`Downloading: ${item.title} (${item.fileSize || 'PDF'})`, 'info')}
                                       className="px-3 py-1.5 text-xs font-medium text-[#20202B] bg-white border border-[#EEEEEB] hover:bg-[#F7F7F4] rounded-lg cursor-pointer transition flex items-center space-x-1"
                                     >
                                       <FileText className="w-3.5 h-3.5 mr-1 text-[#85858D]" />
@@ -930,11 +965,25 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                             <p className="text-xs text-[#85858D] mt-1">Max file size 50 MB</p>
                           </div>
 
-                          <div className="p-4 border-2 border-dashed border-[#EEEEEB] rounded-xl text-center hover:bg-[#F7F7F4] transition cursor-pointer">
+                          <label className="block p-4 border-2 border-dashed border-[#EEEEEB] rounded-xl text-center hover:bg-[#F7F7F4] transition cursor-pointer">
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.docx,.zip,.xlsx"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setSubmissionFileNames(prev => ({ ...prev, [asg.id]: file.name }));
+                                  showToast(`File selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`, 'info');
+                                }
+                              }}
+                            />
                             <Upload className="w-5 h-5 text-[#85858D] mx-auto mb-1" />
-                            <span className="font-semibold text-[#20202B]">Select a file to upload</span>
-                            <p className="text-xs text-[#85858D] mt-0.5">PDF, ZIP, DOCX supported</p>
-                          </div>
+                            <span className="font-semibold text-[#20202B]">
+                              {submissionFileNames[asg.id] ? `Selected: ${submissionFileNames[asg.id]}` : 'Select a file to upload'}
+                            </span>
+                            <p className="text-xs text-[#85858D] mt-0.5">Click or drag & drop (PDF, ZIP, DOCX supported)</p>
+                          </label>
 
                           <div className="flex justify-end pt-1">
                             <button
@@ -985,47 +1034,50 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredTimetable.map((slot) => (
-              <div
-                key={slot.id}
-                className="p-4 rounded-xl border border-[#EEEEEB] bg-[#F7F7F4]/40 hover:bg-[#F7F7F4] transition space-y-2 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-2">
-                    <span className="font-semibold text-[#85858D]">{slot.day}</span>
-                    <span className="text-xs font-mono font-bold text-[#20202B] bg-white px-2 py-0.5 rounded border border-[#EEEEEB]">
-                      {slot.time}
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-bold text-[#20202B] mb-1">{slot.courseName}</h4>
-                  <p className="text-xs text-[#5A5A66]">{slot.courseCode} • {slot.instructor}</p>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-[#EEEEEB] flex items-center justify-between text-xs">
-                  <span className="font-medium text-[#20202B] flex items-center">
-                    <MapPin className="w-3.5 h-3.5 mr-1 text-[#85858D]" />
-                    {slot.room}
-                  </span>
-                  <button
-                    onClick={() => handleReportRoomQuick(slot.id)}
-                    className="text-xs text-[#20202B] font-semibold hover:underline cursor-pointer"
-                  >
-                    {reportedRoomSlot === slot.id ? '✓ Issue Noted' : 'Report Issue'}
-                  </button>
-                </div>
-
-                {slot.hasClash && (
-                  <div className="mt-3 p-2 bg-white border border-[#C27803]/30 rounded-lg text-xs text-[#9E5F00] flex items-start space-x-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-[#C27803] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-semibold">Dining Clash: </span>
-                      <span>Overlaps with peak lunch service (13:15-14:00).</span>
+            {filteredTimetable.map((slot) => {
+              const hasClash = slot.hasClash || checkDiningClash(slot.time);
+              return (
+                <div
+                  key={slot.id}
+                  className="p-4 rounded-xl border border-[#EEEEEB] bg-[#F7F7F4]/40 hover:bg-[#F7F7F4] transition space-y-2 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="font-semibold text-[#85858D]">{slot.day}</span>
+                      <span className="text-xs font-mono font-bold text-[#20202B] bg-white px-2 py-0.5 rounded border border-[#EEEEEB]">
+                        {slot.time}
+                      </span>
                     </div>
+
+                    <h4 className="text-sm font-bold text-[#20202B] mb-1">{slot.courseName}</h4>
+                    <p className="text-xs text-[#5A5A66]">{slot.courseCode} • {slot.instructor}</p>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  <div className="mt-3 pt-3 border-t border-[#EEEEEB] flex items-center justify-between text-xs">
+                    <span className="font-medium text-[#20202B] flex items-center">
+                      <MapPin className="w-3.5 h-3.5 mr-1 text-[#85858D]" />
+                      {slot.room}
+                    </span>
+                    <button
+                      onClick={() => onOpenReportTicket(slot.room)}
+                      className="text-xs text-[#20202B] font-semibold hover:underline cursor-pointer"
+                    >
+                      Report Issue
+                    </button>
+                  </div>
+
+                  {hasClash && (
+                    <div className="mt-3 p-2 bg-white border border-[#C27803]/30 rounded-lg text-xs text-[#9E5F00] flex items-start space-x-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#C27803] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold">Dining Clash: </span>
+                        <span>Lecture overlaps with Lunch Service (12:30 - 14:00).</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1060,7 +1112,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
 
             <div className="flex items-center space-x-2 shrink-0">
               <button
-                onClick={() => alert('Exporting Certified Term IV Academic Record & Biometric Audit (PDF)...')}
+                onClick={() => showToast('Exporting Certified Term IV Academic Record & Biometric Audit (PDF)...', 'info')}
                 className="px-4 py-2.5 bg-[#202033] hover:bg-[#12121E] text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center space-x-2 shadow-xs"
               >
                 <Download className="w-4 h-4 text-[#D7F36A]" />
@@ -1508,21 +1560,21 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
               <div className="space-y-2.5 text-xs">
                 <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
                   <span className="text-[#5A5A66]">SM-403 Capstone Strategic Defense:</span>
-                  <strong className="font-mono text-[#20202B]">&ge; 42 / 50 Marks</strong>
+                  <strong className="font-mono text-[#20202B]">&ge; {Math.min(50, Math.max(35, Math.round(50 * (0.78 + (simulatedGpaGoal - 3.80) * 1.6))))} / 50 Marks</strong>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
                   <span className="text-[#5A5A66]">BA-402 Final Time-Series Project:</span>
-                  <strong className="font-mono text-[#20202B]">&ge; 26 / 30 Marks</strong>
+                  <strong className="font-mono text-[#20202B]">&ge; {Math.min(30, Math.max(20, Math.round(30 * (0.76 + (simulatedGpaGoal - 3.80) * 2.0))))} / 30 Marks</strong>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
                   <span className="text-[#5A5A66]">QM-406 Optimization Final:</span>
-                  <strong className="font-mono text-[#20202B]">&ge; 43 / 50 Marks</strong>
+                  <strong className="font-mono text-[#20202B]">&ge; {Math.min(50, Math.max(36, Math.round(50 * (0.80 + (simulatedGpaGoal - 3.80) * 1.6))))} / 50 Marks</strong>
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-[#EAF6EE] border border-[#268A50]/30 text-xs text-[#1C6E3E] font-medium flex items-center space-x-1.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Current trajectory achieves {simulatedGpaGoal.toFixed(2)} target with 94.2% statistical confidence.</span>
+                <span>Current trajectory achieves {simulatedGpaGoal.toFixed(2)} target with {parseFloat(Math.max(60.0, Math.min(99.0, 97.4 - (simulatedGpaGoal - 3.80) * 192)).toFixed(1))}% statistical confidence.</span>
               </div>
             </div>
 
@@ -1558,7 +1610,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                           } else if (rec.id === 'rec-2') {
                             setActiveLearnTab('timetable');
                           } else {
-                            alert('Downloading Official Biometric Attendance Audit Statement (PDF)...');
+                            showToast('Downloading Official Biometric Attendance Audit Statement (PDF)...', 'info');
                           }
                         }}
                         className="text-xs font-semibold text-[#20202B] hover:underline flex items-center cursor-pointer"

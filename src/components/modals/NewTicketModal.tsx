@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCockpit } from '../../context/CockpitContext';
 import { TicketPriority, Ticket } from '../../types';
 import { Wrench, X, CheckCircle2 } from 'lucide-react';
@@ -23,6 +23,12 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({
   const [location, setLocation] = useState(prefilledLocation || `${currentUser.roomOrOffice}`);
   const [photoUrl, setPhotoUrl] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocation(prefilledLocation || `${currentUser.roomOrOffice}`);
+    }
+  }, [isOpen, prefilledLocation, currentUser.roomOrOffice]);
 
   if (!isOpen) return null;
 

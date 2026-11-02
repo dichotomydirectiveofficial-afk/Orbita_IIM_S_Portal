@@ -105,6 +105,17 @@ interface CockpitContextType {
   setSearchQuery: (query: string) => void;
   isNotificationOpen: boolean;
   setIsNotificationOpen: (open: boolean) => void;
+
+  // In-app toast feedback
+  toasts: ToastItem[];
+  showToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
+  dismissToast: (id: string) => void;
+}
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
 }
 
 const CockpitContext = createContext<CockpitContextType | undefined>(undefined);
@@ -141,6 +152,21 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
 
+  // In-app toasts
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const showToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      dismissToast(id);
+    }, 4000);
+  };
+
   // Mess Forecasting Parameters (Exponential Smoothing + Newsvendor Model)
   const [forecastParams, setForecastParams] = useState<ForecastModelParams>({
     alpha: 0.35,
@@ -165,7 +191,7 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const setWorkspace = (ws: Workspace) => {
     if (ws === 'operations' && !isAdminMode) {
       if (!currentUser.isAdminEligible) {
-        alert('Access Denied: Your account role does not have administrative privileges.');
+        showToast('Access Denied: Your account role does not have administrative privileges.', 'error');
         return;
       }
       setIsStepUpModalOpen(true);
@@ -575,6 +601,9 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setSearchQuery,
         isNotificationOpen,
         setIsNotificationOpen,
+        toasts,
+        showToast,
+        dismissToast,
       }}
     >
       {children}

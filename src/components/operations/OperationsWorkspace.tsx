@@ -6,7 +6,13 @@ import {
   Clock, 
   Wrench, 
   Brain, 
-  Download
+  Download,
+  Zap,
+  Droplet,
+  Users,
+  Flame,
+  CheckCircle2,
+  UtensilsCrossed
 } from 'lucide-react';
 
 export const OperationsWorkspace: React.FC = () => {
@@ -23,7 +29,10 @@ export const OperationsWorkspace: React.FC = () => {
     problemRecords,
     kpis,
     auditLogs,
-    currentUser
+    currentUser,
+    mealSlots,
+    utilityTelemetry,
+    showToast
   } = useCockpit();
 
   // Mess forecasting simulation state
@@ -38,6 +47,25 @@ export const OperationsWorkspace: React.FC = () => {
 
   const overdueTickets = tickets.filter(t => t.isOverdue && t.state !== 'Closed');
   const criticalTickets = tickets.filter(t => t.priority === 'P1' && t.state !== 'Closed');
+
+  // Deduplicate tickets using unique IDs to prevent React duplicate key crashes
+  const triageTickets = Array.from(
+    new Map([...criticalTickets, ...overdueTickets].map(t => [t.id, t])).values()
+  );
+
+  // Daily Kitchen Production Planning Sheet computations (Reactive to Skip Meal & Tuner Sliders)
+  const enrolledDiners = 500;
+  const declaredSkips = mealSlots.reduce((sum, slot) => sum + slot.skippedCount, 0);
+  const netConfirmedDemand = Math.max(0, enrolledDiners - declaredSkips);
+  const smoothedDemand = Math.round(simAlpha * netConfirmedDemand + (1 - simAlpha) * 460);
+  const plannedQuantity = Math.round(smoothedDemand * (1 + simBuffer / 100));
+  const batch1Target = Math.round(plannedQuantity * 0.75); // 75% pre-service cooking target
+  const batch2Reserve = plannedQuantity - batch1Target;     // 25% postponement reserve
+
+  // 3-Tier Newsvendor sizing
+  const coreTierPortions = Math.round(plannedQuantity * 1.0);
+  const committedPremiumPortions = Math.round(netConfirmedDemand * 0.85 * (1 + (simBuffer / 100) * 0.5));
+  const liveFinishingPortions = Math.round(plannedQuantity * 0.4);
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
@@ -115,7 +143,7 @@ export const OperationsWorkspace: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {criticalTickets.concat(overdueTickets).map((ticket) => (
+              {triageTickets.map((ticket) => (
                 <div
                   key={ticket.id}
                   className="p-4 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
@@ -163,70 +191,102 @@ export const OperationsWorkspace: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-[#20202B]">Control Room Ticketing Board</h3>
-              <p className="text-xs text-[#85858D]">Live ticket state machine: Submitted &rarr; Acknowledged &rarr; In Progress &rarr; Resolved</p>
+              <p className="text-xs text-[#85858D]">Live 6-stage ticket state machine: Submitted &rarr; Acknowledged &rarr; In Progress &rarr; Resolved &rarr; Reopened &rarr; Closed</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {(['Submitted', 'Acknowledged', 'In progress', 'Resolved'] as TicketState[]).map((state) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {(['Submitted', 'Acknowledged', 'In progress', 'Resolved', 'Reopened', 'Closed'] as TicketState[]).map((state) => {
               const stateTickets = tickets.filter(t => t.state === state);
               return (
-                <div key={state} className="bg-white rounded-2xl p-4 border border-[#EEEEEB] space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#EEEEEB]">
-                    <span className="text-xs font-bold text-[#20202B]">{state}</span>
-                    <span className="text-xs font-mono font-bold bg-[#F7F7F4] text-[#20202B] px-2 py-0.5 rounded border border-[#EEEEEB]">
-                      {stateTickets.length}
-                    </span>
-                  </div>
+                <div key={state} className="bg-white rounded-2xl p-4 border border-[#EEEEEB] space-y-3 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#EEEEEB]">
+                      <span className="text-xs font-bold text-[#20202B]">{state}</span>
+                      <span className="text-xs font-mono font-bold bg-[#F7F7F4] text-[#20202B] px-2 py-0.5 rounded border border-[#EEEEEB]">
+                        {stateTickets.length}
+                      </span>
+                    </div>
 
-                  <div className="space-y-2.5">
-                    {stateTickets.map((t) => (
-                      <div
-                        key={t.id}
-                        className="bg-[#F7F7F4] p-3.5 rounded-xl border border-[#EEEEEB] space-y-2 text-xs hover:border-[#20202B]/30 transition"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-medium text-[#85858D]">{t.trackingNumber}</span>
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
-                            t.priority === 'P1' ? 'bg-[#FDE8E8] text-[#B71C1C]' : 'bg-white text-[#20202B] border border-[#EEEEEB]'
-                          }`}>
-                            {t.priority}
-                          </span>
+                    <div className="space-y-2.5">
+                      {stateTickets.length === 0 ? (
+                        <div className="py-6 text-center text-[11px] text-[#85858D] bg-[#F7F7F4] rounded-xl border border-dashed border-[#EEEEEB]">
+                          No tickets
                         </div>
+                      ) : (
+                        stateTickets.map((t) => (
+                          <div
+                            key={t.id}
+                            className="bg-[#F7F7F4] p-3 rounded-xl border border-[#EEEEEB] space-y-2 text-xs hover:border-[#20202B]/30 transition"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-[11px] font-medium text-[#85858D]">{t.trackingNumber}</span>
+                              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                                t.priority === 'P1' ? 'bg-[#FDE8E8] text-[#B71C1C]' : 'bg-white text-[#20202B] border border-[#EEEEEB]'
+                              }`}>
+                                {t.priority}
+                              </span>
+                            </div>
 
-                        <h5 className="font-bold text-[#20202B] line-clamp-2 leading-snug">{t.title}</h5>
-                        <p className="text-xs text-[#85858D]">{t.location}</p>
+                            <h5 className="font-bold text-[#20202B] line-clamp-2 leading-snug">{t.title}</h5>
+                            <p className="text-[11px] text-[#85858D] truncate">{t.location}</p>
 
-                        <div className="pt-2 border-t border-[#EEEEEB] flex items-center justify-between text-xs">
-                          <span className="text-[#85858D]">Due: {new Date(t.dueResolveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          
-                          {state === 'Submitted' && (
-                            <button
-                              onClick={() => updateTicketStatus(t.id, 'Acknowledged')}
-                              className="text-[#20202B] font-bold hover:underline cursor-pointer"
-                            >
-                              Acknowledge &rarr;
-                            </button>
-                          )}
-                          {state === 'Acknowledged' && (
-                            <button
-                              onClick={() => updateTicketStatus(t.id, 'In progress')}
-                              className="text-[#20202B] font-bold hover:underline cursor-pointer"
-                            >
-                              Start &rarr;
-                            </button>
-                          )}
-                          {state === 'In progress' && (
-                            <button
-                              onClick={() => updateTicketStatus(t.id, 'Resolved')}
-                              className="text-[#1C6E3E] font-bold hover:underline cursor-pointer"
-                            >
-                              Mark Resolved &rarr;
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                            <div className="pt-2 border-t border-[#EEEEEB] flex items-center justify-between text-[11px]">
+                              <span className="text-[#85858D]">Due: {new Date(t.dueResolveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              
+                              {state === 'Submitted' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'Acknowledged')}
+                                  className="text-[#20202B] font-bold hover:underline cursor-pointer"
+                                >
+                                  Ack &rarr;
+                                </button>
+                              )}
+                              {state === 'Acknowledged' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'In progress')}
+                                  className="text-[#20202B] font-bold hover:underline cursor-pointer"
+                                >
+                                  Start &rarr;
+                                </button>
+                              )}
+                              {state === 'In progress' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'Resolved')}
+                                  className="text-[#1C6E3E] font-bold hover:underline cursor-pointer"
+                                >
+                                  Resolve &rarr;
+                                </button>
+                              )}
+                              {state === 'Resolved' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'Closed')}
+                                  className="text-[#1C6E3E] font-bold hover:underline cursor-pointer"
+                                >
+                                  Close &rarr;
+                                </button>
+                              )}
+                              {state === 'Reopened' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'In progress')}
+                                  className="text-[#B71C1C] font-bold hover:underline cursor-pointer"
+                                >
+                                  Resume &rarr;
+                                </button>
+                              )}
+                              {state === 'Closed' && (
+                                <button
+                                  onClick={() => updateTicketStatus(t.id, 'Reopened')}
+                                  className="text-[#85858D] font-bold hover:underline cursor-pointer"
+                                >
+                                  Reopen &rarr;
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -318,6 +378,212 @@ export const OperationsWorkspace: React.FC = () => {
             </div>
           </div>
 
+          {/* Daily Kitchen Production Planning Sheet */}
+          <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#EEEEEB] gap-3">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <UtensilsCrossed className="w-4 h-4 text-[#20202B]" />
+                  <h4 className="text-sm font-bold text-[#20202B]">Daily Kitchen Production Planning Sheet</h4>
+                </div>
+                <p className="text-xs text-[#85858D] mt-0.5">
+                  Dynamic coupling: Student meal skip declarations feed real-time Newsvendor batches and postponement triggers
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold bg-[#202033] text-[#D7F36A] px-3 py-1 rounded-xl self-start sm:self-auto">
+                Shift: Lunch & Dinner Operations
+              </span>
+            </div>
+
+            {/* Top 5 Planning Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="p-4 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] space-y-1">
+                <span className="text-[11px] text-[#85858D] font-medium">Enrolled Diners</span>
+                <div className="text-2xl font-bold font-mono text-[#20202B]">{enrolledDiners}</div>
+                <p className="text-[11px] text-[#85858D]">Hostel residents base</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#FEF7EA] border border-[#C27803]/30 space-y-1">
+                <span className="text-[11px] text-[#9E5F00] font-medium">Declared Skips</span>
+                <div className="text-2xl font-bold font-mono text-[#9E5F00]">-{declaredSkips}</div>
+                <p className="text-[11px] text-[#9E5F00]">Live skip declarations</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#EAF6EE] border border-[#268A50]/30 space-y-1">
+                <span className="text-[11px] text-[#1C6E3E] font-medium">Net Confirmed Demand</span>
+                <div className="text-2xl font-bold font-mono text-[#1C6E3E]">{netConfirmedDemand}</div>
+                <p className="text-[11px] text-[#1C6E3E]">500 − {declaredSkips} diners</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] space-y-1">
+                <span className="text-[11px] text-[#85858D] font-medium">Smoothed Base (F<sub>t+1</sub>)</span>
+                <div className="text-2xl font-bold font-mono text-[#20202B]">{smoothedDemand}</div>
+                <p className="text-[11px] text-[#85858D]">&alpha; = {simAlpha} blend</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#202033] text-white border border-[#2B2B44] space-y-1 col-span-2 md:col-span-1">
+                <span className="text-[11px] text-[#8E8EA0] font-medium">Planned Production Target</span>
+                <div className="text-2xl font-bold font-mono text-[#D7F36A]">{plannedQuantity}</div>
+                <p className="text-[11px] text-[#8E8EA0]">+{simBuffer}% safety stock buffer</p>
+              </div>
+            </div>
+
+            {/* Two-Batch Release Strategy (75% / 25% Postponement Reserve) */}
+            <div className="p-5 rounded-2xl bg-[#F7F7F4] border border-[#EEEEEB] space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h5 className="text-xs font-bold text-[#20202B]">
+                    Two-Batch Release Target Pipeline
+                  </h5>
+                  <p className="text-xs text-[#85858D]">
+                    Postponement model eliminates over-cooking before actual headcounts materialize
+                  </p>
+                </div>
+                <div className="text-xs font-mono text-[#5A5A66]">
+                  Target Total: <strong>{plannedQuantity} Plates</strong>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-[#EEEEEB] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#20202B]">Batch 1: Pre-Service Cooking Target (75%)</span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#EAF6EE] text-[#1C6E3E]">
+                      {batch1Target} Plates
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-[#F7F7F4] rounded-full overflow-hidden border border-[#EEEEEB]">
+                    <div className="h-full bg-[#202033] rounded-full" style={{ width: '75%' }} />
+                  </div>
+                  <p className="text-xs text-[#5A5A66] leading-relaxed">
+                    Commence preparation 1.5h before meal door opening. Provides complete coverage for initial queue arrivals without holding excess perishable dishes on warmers.
+                  </p>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-[#EEEEEB] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#20202B]">Batch 2: Postponement Reserve (25%)</span>
+                    <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-[#FEF7EA] text-[#9E5F00]">
+                      {batch2Reserve} Plates
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-[#F7F7F4] rounded-full overflow-hidden border border-[#EEEEEB]">
+                    <div className="h-full bg-[#D7F36A] rounded-full" style={{ width: '25%' }} />
+                  </div>
+                  <p className="text-xs text-[#5A5A66] leading-relaxed">
+                    Held in raw prep stage in cold holding. Triggered for live finishing at 13:10 only if remaining diners count exceeds Batch 1 residual servings.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 3-Tier Newsvendor Sizing */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="text-xs font-bold text-[#20202B]">
+                    3-Tier Newsvendor Dish Sizing & Critical Ratio Alignment
+                  </h5>
+                  <p className="text-xs text-[#85858D]">
+                    Matches stockout risk against overage costs dish by dish
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                {/* Core Tier */}
+                <div className="bg-white p-4 rounded-xl border border-[#EEEEEB] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#20202B]">Core Tier (Staples)</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#EAF6EE] text-[#1C6E3E]">
+                      CR = 0.909
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#85858D]">
+                    Rice, Yellow Dal Tadka, Phulkas, Seasonal Mixed Sabzi
+                  </div>
+                  <div className="p-2.5 bg-[#F7F7F4] rounded-lg border border-[#EEEEEB] space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-[#5A5A66]">Production Target:</span>
+                      <strong className="font-mono text-[#20202B]">{coreTierPortions} portions</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Underage Cost (C<sub>u</sub>):</span>
+                      <span>₹100 / plate</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Overage Cost (C<sub>o</sub>):</span>
+                      <span>₹10 / plate</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#5A5A66] leading-snug">
+                    Safety stock layer. Inexpensive to prepare in volume, high stockout penalty. Guaranteed plentiful supply for all attendees.
+                  </p>
+                </div>
+
+                {/* Committed Premium Tier */}
+                <div className="bg-white p-4 rounded-xl border border-[#EEEEEB] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#20202B]">Committed Premium Tier</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#FEF7EA] text-[#9E5F00]">
+                      CR = 0.727
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#85858D]">
+                    Paneer Tikka Masala / Murgh Curry / Sweet Dish
+                  </div>
+                  <div className="p-2.5 bg-[#F7F7F4] rounded-lg border border-[#EEEEEB] space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-[#5A5A66]">Production Target:</span>
+                      <strong className="font-mono text-[#20202B]">{committedPremiumPortions} portions</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Underage Cost (C<sub>u</sub>):</span>
+                      <span>₹120 / plate</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Overage Cost (C<sub>o</sub>):</span>
+                      <span>₹45 / plate</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#5A5A66] leading-snug">
+                    Sized strictly against verified non-skipped diners. High perishable ingredient cost makes over-production the primary driver of mess financial loss.
+                  </p>
+                </div>
+
+                {/* Live Finishing Tier */}
+                <div className="bg-white p-4 rounded-xl border border-[#EEEEEB] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#20202B]">Live Finishing Tier</span>
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#202033] text-[#D7F36A]">
+                      Postponement
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#85858D]">
+                    Live Tawa Roti, Finishing Counters, Fried Accompaniments
+                  </div>
+                  <div className="p-2.5 bg-[#F7F7F4] rounded-lg border border-[#EEEEEB] space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-[#5A5A66]">Batch Size:</span>
+                      <strong className="font-mono text-[#20202B]">25-portion micro-batches</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Live Cook Target:</span>
+                      <strong className="font-mono text-[#20202B]">{liveFinishingPortions} portions</strong>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#85858D]">
+                      <span>Lead Time:</span>
+                      <span>8-10 mins continuous</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#5A5A66] leading-snug">
+                    Zero holding inventory. Chefs bake directly to current line queue depth, ensuring warm delivery and zero end-of-service surplus waste.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Forecast vs Actual Meal Attendance Table */}
           <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
             <h4 className="text-sm font-bold text-[#20202B]">Past 7 Days Production, Actuals and Waste Log</h4>
@@ -360,47 +626,134 @@ export const OperationsWorkspace: React.FC = () => {
       {/* VIEW: Hostel & Infrastructure */}
       {activeOpsTab === 'hostel' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#EEEEEB] gap-3">
             <div>
-              <h3 className="text-base font-bold text-[#20202B]">Hostel & Residence Infrastructure</h3>
-              <p className="text-xs text-[#85858D]">Root-cause documentation for repeat failure hotspots</p>
+              <h3 className="text-base font-bold text-[#20202B]">Hostel & Facilities Asset Oversight</h3>
+              <p className="text-xs text-[#85858D]">Central substation grid telemetry, automated anomaly mitigation, and repeat failure RCA</p>
+            </div>
+            <span className="text-xs font-mono font-semibold text-[#20202B] bg-white px-3 py-1 rounded-xl border border-[#EEEEEB] self-start sm:self-auto">
+              Facilities Sync: Live IoT Telemetry
+            </span>
+          </div>
+
+          {/* Raw Substation IoT & Physical Plant Telemetry (Relocated from Campus Services) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-[#20202B]">Dhaula Kuan Campus Substation Microgrid Telemetry</h4>
+                <p className="text-xs text-[#85858D]">
+                  100,000 daily meter readings across 5 substations and solar rooftop microgrids
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold text-[#1C6E3E] bg-[#EAF6EE] px-2.5 py-0.5 rounded-lg border border-[#268A50]/30">
+                SCADA Live
+              </span>
+            </div>
+
+            {utilityTelemetry.anomalyDetected && (
+              <div className="p-4 bg-[#FDE8E8] border border-[#D32F2F]/30 rounded-xl text-xs text-[#B71C1C] flex items-start space-x-3">
+                <AlertTriangle className="w-5 h-5 text-[#D32F2F] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-sm">Automated Anomaly Detected in Block B Riser</h4>
+                  <p className="mt-0.5 leading-snug">{utilityTelemetry.anomalyMessage}</p>
+                  <span className="text-xs text-[#B71C1C] mt-1 block font-semibold">
+                    A P1 ticket has been automatically generated and dispatched to Suresh Verma (Lead Engineer).
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-[#EEEEEB] space-y-1">
+                <span className="text-xs text-[#85858D] font-medium">Real-Time Electricity Load</span>
+                <div className="text-2xl font-bold text-[#20202B] font-mono">{utilityTelemetry.electricityKw} kW</div>
+                <p className="text-[11px] text-[#85858D]">Peak study hours load</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-[#EEEEEB] space-y-1">
+                <span className="text-xs text-[#85858D] font-medium">Solar Array Generation</span>
+                <div className="text-2xl font-bold text-[#1C6E3E] font-mono">{utilityTelemetry.solarGenerationKw} kW</div>
+                <p className="text-[11px] text-[#85858D]">Rooftop Solar Array Phase 1</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-[#EEEEEB] space-y-1">
+                <span className="text-xs text-[#85858D] font-medium">Daily Water Draw</span>
+                <div className="text-2xl font-bold text-[#20202B] font-mono">{utilityTelemetry.waterKiloLiters} kL</div>
+                <p className="text-[11px] text-[#85858D]">Campus consumption today</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-[#EEEEEB] space-y-1">
+                <span className="text-xs text-[#85858D] font-medium">Clean Energy Offset</span>
+                <div className="text-2xl font-bold text-[#20202B] font-mono">18.9%</div>
+                <p className="text-[11px] text-[#85858D]">2035 Target: 40% Clean Energy</p>
+              </div>
+            </div>
+
+            {/* Substation Feeder Breakdown */}
+            <div className="p-4 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] space-y-3">
+              <span className="text-xs font-bold text-[#20202B] block">
+                5-Substation Microgrid Load Distribution
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                {[
+                  { name: 'SS-01 (Academic)', load: '142 kW', pf: '0.98 PF', status: 'Optimal' },
+                  { name: 'SS-02 (Hostels A/B)', load: '168 kW', pf: '0.94 PF', status: 'High' },
+                  { name: 'SS-03 (Dining Mess)', load: '86 kW', pf: '0.96 PF', status: 'Optimal' },
+                  { name: 'SS-04 (Admin/IT)', load: '48 kW', pf: '0.99 PF', status: 'Optimal' },
+                  { name: 'SS-05 (Faculty Enclave)', load: '36 kW', pf: '0.97 PF', status: 'Optimal' },
+                ].map((ss) => (
+                  <div key={ss.name} className="bg-white p-3 rounded-xl border border-[#EEEEEB] space-y-1">
+                    <span className="font-bold text-[#20202B] block truncate">{ss.name}</span>
+                    <span className="font-mono text-xs font-semibold text-[#20202B]">{ss.load}</span>
+                    <div className="text-[11px] text-[#85858D]">{ss.pf} • {ss.status}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {problemRecords.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-[#20202B] bg-[#F7F7F4] px-2.5 py-1 rounded-md border border-[#EEEEEB]">
-                    {p.problemNumber}
-                  </span>
-                  <span className="text-xs font-semibold text-[#B71C1C] bg-[#FDE8E8] px-2.5 py-0.5 rounded-full border border-[#D32F2F]/20">
-                    {p.repeatOccurrences}x Recurring Incidents
-                  </span>
-                </div>
+          {/* Repeat Failure Problem Records */}
+          <div className="space-y-4 pt-2">
+            <div>
+              <h4 className="text-sm font-bold text-[#20202B]">Recurring Incident Problem Records</h4>
+              <p className="text-xs text-[#85858D]">Root-cause documentation for repeat failure hotspots requiring RCA</p>
+            </div>
 
-                <h4 className="text-sm font-bold text-[#20202B]">{p.assetOrLocation}</h4>
-                <div className="text-xs text-[#85858D] font-medium">Category: {p.category}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {problemRecords.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-[#20202B] bg-[#F7F7F4] px-2.5 py-1 rounded-md border border-[#EEEEEB]">
+                      {p.problemNumber}
+                    </span>
+                    <span className="text-xs font-semibold text-[#B71C1C] bg-[#FDE8E8] px-2.5 py-0.5 rounded-full border border-[#D32F2F]/20">
+                      {p.repeatOccurrences}x Recurring Incidents
+                    </span>
+                  </div>
 
-                <div className="p-3 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] text-xs space-y-1.5">
-                  <div className="font-bold text-[#20202B]">Root Cause Analysis (RCA):</div>
-                  <p className="text-[#5A5A66] leading-relaxed">{p.rootCauseAnalysis}</p>
-                </div>
+                  <h4 className="text-sm font-bold text-[#20202B]">{p.assetOrLocation}</h4>
+                  <div className="text-xs text-[#85858D] font-medium">Category: {p.category}</div>
 
-                <div className="p-3 bg-[#EAF6EE] rounded-xl border border-[#268A50]/30 text-xs space-y-1">
-                  <div className="font-bold text-[#1C6E3E]">Engineering Remedy:</div>
-                  <p className="text-[#1C6E3E]">{p.remedyAction}</p>
-                </div>
+                  <div className="p-3 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] text-xs space-y-1.5">
+                    <div className="font-bold text-[#20202B]">Root Cause Analysis (RCA):</div>
+                    <p className="text-[#5A5A66] leading-relaxed">{p.rootCauseAnalysis}</p>
+                  </div>
 
-                <div className="text-xs text-[#85858D] pt-1 flex justify-between">
-                  <span>Status: <strong className="text-[#20202B]">Approved</strong></span>
-                  <span>Last Audit: {new Date(p.updatedAt).toLocaleDateString()}</span>
+                  <div className="p-3 bg-[#EAF6EE] rounded-xl border border-[#268A50]/30 text-xs space-y-1">
+                    <div className="font-bold text-[#1C6E3E]">Engineering Remedy:</div>
+                    <p className="text-[#1C6E3E]">{p.remedyAction}</p>
+                  </div>
+
+                  <div className="text-xs text-[#85858D] pt-1 flex justify-between">
+                    <span>Status: <strong className="text-[#20202B]">Approved</strong></span>
+                    <span>Last Audit: {new Date(p.updatedAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -446,7 +799,7 @@ export const OperationsWorkspace: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => alert('Exporting live KPI scorecard as verified PDF and CSV')}
+              onClick={() => showToast('Exporting live KPI scorecard as verified PDF and CSV...', 'info')}
               className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#202033] hover:bg-[#12121E] text-white rounded-xl text-xs font-semibold cursor-pointer transition"
             >
               <Download className="w-3.5 h-3.5 text-[#D7F36A]" />

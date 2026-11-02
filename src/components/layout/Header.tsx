@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useCockpit } from '../../context/CockpitContext';
 import { 
   Search, 
@@ -21,6 +21,20 @@ export const Header: React.FC = () => {
     setIsNotificationOpen
   } = useCockpit();
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <header className="h-16 bg-[#FFFFFF] border-b border-[#EEEEEB] px-8 flex items-center justify-between shrink-0 relative z-20 gap-4">
       {/* Global Expanded Search Bar */}
@@ -30,12 +44,18 @@ export const Header: React.FC = () => {
             <Search className="w-4 h-4" />
           </div>
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search courses, timetable, tickets, policies... (Cmd+K)"
-            className="w-full pl-9 pr-4 py-2 text-xs bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl focus:bg-white focus:outline-hidden focus:border-[#20202B] transition text-[#20202B] placeholder-[#85858D]"
+            className="w-full pl-9 pr-14 py-2 text-xs bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl focus:bg-white focus:outline-hidden focus:border-[#20202B] transition text-[#20202B] placeholder-[#85858D]"
           />
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[11px] font-mono font-medium text-[#85858D] bg-white border border-[#EEEEEB] rounded shadow-2xs">
+              ⌘K
+            </kbd>
+          </div>
         </div>
       </div>
 

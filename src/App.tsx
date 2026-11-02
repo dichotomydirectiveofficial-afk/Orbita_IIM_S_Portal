@@ -8,10 +8,10 @@ import { CampusWorkspace } from './components/campus/CampusWorkspace';
 import { OperationsWorkspace } from './components/operations/OperationsWorkspace';
 import { AdminStepUpModal } from './components/modals/AdminStepUpModal';
 import { NewTicketModal } from './components/modals/NewTicketModal';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, CheckCircle2, Bell } from 'lucide-react';
 
 const CockpitMain: React.FC = () => {
-  const { workspace, alerts, dismissAlert } = useCockpit();
+  const { workspace, alerts, dismissAlert, toasts, dismissToast } = useCockpit();
   const [isNewTicketOpen, setIsNewTicketOpen] = useState(false);
   const [prefilledLocation, setPrefilledLocation] = useState<string | undefined>(undefined);
 
@@ -77,6 +77,41 @@ const CockpitMain: React.FC = () => {
         onClose={() => setIsNewTicketOpen(false)}
         prefilledLocation={prefilledLocation}
       />
+
+      {/* Sleek In-App Toast Notification Stack */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto p-4 rounded-xl border shadow-lg flex items-start space-x-3 transition-all duration-200 ${
+              toast.type === 'error'
+                ? 'bg-[#FDE8E8] border-[#D32F2F]/30 text-[#B71C1C]'
+                : toast.type === 'warning'
+                ? 'bg-[#FEF7EA] border-[#C27803]/30 text-[#9E5F00]'
+                : toast.type === 'success'
+                ? 'bg-[#EAF6EE] border-[#268A50]/30 text-[#1C6E3E]'
+                : 'bg-[#202033] border-[#2B2B44] text-white'
+            }`}
+          >
+            <div className="shrink-0 mt-0.5">
+              {toast.type === 'error' && <AlertTriangle className="w-4 h-4 text-[#D32F2F]" />}
+              {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 text-[#C27803]" />}
+              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-[#1C6E3E]" />}
+              {toast.type === 'info' && <Bell className="w-4 h-4 text-[#D7F36A]" />}
+            </div>
+            <div className="flex-1 text-xs font-medium leading-relaxed">
+              {toast.message}
+            </div>
+            <button
+              onClick={() => dismissToast(toast.id)}
+              className="shrink-0 p-0.5 rounded hover:bg-black/10 transition cursor-pointer"
+              aria-label="Dismiss notification"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

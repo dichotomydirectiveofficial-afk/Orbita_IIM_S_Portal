@@ -37,10 +37,20 @@ export const Sidebar: React.FC = () => {
     openStepUpModal,
     currentUser,
     courses,
-    assignments
+    assignments,
+    tickets,
+    parcels
   } = useCockpit();
 
   const dueAssignmentsCount = assignments.filter(a => a.status === 'pending').length;
+  
+  // Dynamic badge computations
+  const openTicketsCount = tickets.filter(t => t.state !== 'Closed' && t.state !== 'Resolved').length;
+  const userParcels = currentUser.role === 'student'
+    ? parcels.filter(p => p.recipientEmail === currentUser.email)
+    : parcels;
+  const pendingParcelsCount = userParcels.filter(p => p.status === 'ready_for_pickup').length;
+  const urgentTriageCount = tickets.filter(t => (t.priority === 'P1' || t.isOverdue) && t.state !== 'Closed').length;
 
   return (
     <aside className="w-60 bg-[#202033] text-white flex flex-col h-full shrink-0 select-none border-r border-[#2B2B44]">
@@ -154,7 +164,7 @@ export const Sidebar: React.FC = () => {
               icon={<Wrench className="w-4 h-4" />}
               label="Control Room Tickets"
               isActive={activeCampusTab === 'tickets'}
-              badge="2"
+              badge={openTicketsCount > 0 ? `${openTicketsCount}` : undefined}
               onClick={() => setActiveCampusTab('tickets')}
             />
             <NavItem
@@ -167,7 +177,7 @@ export const Sidebar: React.FC = () => {
               icon={<Package className="w-4 h-4" />}
               label="Parcels & Courier"
               isActive={activeCampusTab === 'parcels'}
-              badge="1"
+              badge={pendingParcelsCount > 0 ? `${pendingParcelsCount}` : undefined}
               onClick={() => setActiveCampusTab('parcels')}
             />
             <NavItem
@@ -178,7 +188,7 @@ export const Sidebar: React.FC = () => {
             />
             <NavItem
               icon={<Zap className="w-4 h-4" />}
-              label="Energy & Utilities"
+              label="Hostel Living & Eco"
               isActive={activeCampusTab === 'utilities'}
               onClick={() => setActiveCampusTab('utilities')}
             />
@@ -202,7 +212,7 @@ export const Sidebar: React.FC = () => {
               icon={<LayoutDashboard className="w-4 h-4" />}
               label="Today (Triage)"
               isActive={activeOpsTab === 'today'}
-              badge="Urgent"
+              badge={urgentTriageCount > 0 ? `${urgentTriageCount} Urgent` : undefined}
               badgeColor="lime"
               onClick={() => setActiveOpsTab('today')}
             />

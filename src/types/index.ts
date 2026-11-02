@@ -95,7 +95,7 @@ export interface Assignment {
 
 export interface TimetableSlot {
   id: string;
-  day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday';
+  day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
   time: string;
   courseCode: string;
   courseName: string;

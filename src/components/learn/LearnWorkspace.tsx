@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCockpit } from '../../context/CockpitContext';
 import { Course, Assignment, TimetableSlot } from '../../types';
+import { STUDENT_ANALYTICS } from '../../data/mockData';
 import { StudentIdBadgeCard } from '../common/StudentIdBadgeCard';
 import { 
   Clock, 
@@ -20,7 +21,17 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Wrench
+  Wrench,
+  Target,
+  ShieldCheck,
+  Activity,
+  Sparkles,
+  Download,
+  GraduationCap,
+  Flame,
+  Layers,
+  Compass,
+  BarChart2
 } from 'lucide-react';
 
 interface LearnWorkspaceProps {
@@ -44,6 +55,13 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
   const [activeVideoTitle, setActiveVideoTitle] = useState<string | null>(null);
   const [courseCategoryFilter, setCourseCategoryFilter] = useState<string>('all');
   
+  // Interactive filters for Assignments and Timetable
+  const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'pending' | 'submitted' | 'graded'>('all');
+  const [timetableDayFilter, setTimetableDayFilter] = useState<string>('All');
+  
+  // Target GPA simulator state for Learning Analytics
+  const [simulatedGpaGoal, setSimulatedGpaGoal] = useState<number>(3.85);
+
   // Inline Assignment Submission State (replaces floating SubmitAssignmentModal)
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null);
   const [submissionFileNames, setSubmissionFileNames] = useState<Record<string, string>>({});
@@ -59,6 +77,18 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
     const matchesCategory = courseCategoryFilter === 'all' || c.category.toLowerCase() === courseCategoryFilter.toLowerCase();
     const matchesSearch = !searchQuery || c.title.toLowerCase().includes(searchQuery.toLowerCase()) || c.code.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
+  });
+
+  const filteredAssignments = assignments.filter((a) => {
+    if (assignmentFilter === 'pending') return a.status === 'pending';
+    if (assignmentFilter === 'submitted') return a.status === 'submitted';
+    if (assignmentFilter === 'graded') return a.status === 'graded';
+    return true;
+  });
+
+  const filteredTimetable = timetable.filter((slot) => {
+    if (timetableDayFilter === 'All') return true;
+    return slot.day === timetableDayFilter;
   });
 
   // Calendar days generation
@@ -165,7 +195,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
               </div>
 
               <div className="space-y-3">
-                {courses.slice(0, 3).map((course) => (
+                {courses.slice(0, 4).map((course) => (
                   <div
                     key={course.id}
                     onClick={() => {
@@ -337,7 +367,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
               </div>
 
               <div className="space-y-3">
-                {assignments.map((asg) => (
+                {assignments.slice(0, 4).map((asg) => (
                   <div
                     key={asg.id}
                     className="p-3.5 rounded-xl border border-[#EEEEEB] space-y-2 text-xs"
@@ -346,10 +376,10 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                       <span className="font-mono font-bold text-[#20202B] bg-[#F7F7F4] px-2 py-0.5 rounded border border-[#EEEEEB]">
                         {asg.courseCode}
                       </span>
-                      {asg.status === 'submitted' ? (
+                      {asg.status === 'submitted' || asg.status === 'graded' ? (
                         <span className="text-[11px] font-semibold text-[#1C6E3E] bg-[#EAF6EE] px-2 py-0.5 rounded flex items-center">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Submitted
+                          {asg.status === 'graded' ? 'Graded' : 'Submitted'}
                         </span>
                       ) : (
                         <span className="text-[11px] font-semibold text-[#9E5F00] bg-[#FEF7EA] px-2 py-0.5 rounded flex items-center">
@@ -377,11 +407,20 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                         }}
                         className="px-3 py-1 bg-[#202033] hover:bg-[#12121E] text-white rounded-lg text-xs font-medium cursor-pointer transition"
                       >
-                        {asg.status === 'submitted' ? 'View Grade' : 'Submit'}
+                        {asg.status === 'graded' ? 'View Grade' : asg.status === 'submitted' ? 'View Work' : 'Submit'}
                       </button>
                     </div>
                   </div>
                 ))}
+
+                {assignments.length > 4 && (
+                  <button
+                    onClick={() => setActiveLearnTab('assignments')}
+                    className="w-full py-2 bg-[#F7F7F4] hover:bg-[#EEEEEB] text-xs font-semibold text-[#20202B] rounded-xl transition cursor-pointer text-center"
+                  >
+                    View All {assignments.length} Deliverables
+                  </button>
+                )}
               </div>
             </div>
 
@@ -592,6 +631,7 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                     <option value="Analytics">Analytics</option>
                     <option value="Strategy">Strategy</option>
                     <option value="Finance">Finance</option>
+                    <option value="Marketing">Marketing</option>
                   </select>
                   <span className="text-xs font-mono font-semibold text-[#20202B] bg-white border border-[#EEEEEB] px-3 py-1.5 rounded-xl">
                     {filteredCourses.length} Courses
@@ -663,18 +703,58 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
       {/* ========================================================================= */}
       {activeLearnTab === 'assignments' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-[#20202B]">Course Assignments & Evaluations</h3>
               <p className="text-xs text-[#85858D]">Submit deliverables, track deadlines, and view instructor remarks directly inline</p>
             </div>
-            <span className="text-xs font-mono font-medium text-[#85858D] bg-white border border-[#EEEEEB] px-3 py-1.5 rounded-xl">
-              {assignments.length} Deliverables
-            </span>
+            
+            <div className="flex items-center space-x-2 text-xs">
+              <button
+                onClick={() => setAssignmentFilter('all')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                  assignmentFilter === 'all'
+                    ? 'bg-[#202033] text-white'
+                    : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
+                }`}
+              >
+                All ({assignments.length})
+              </button>
+              <button
+                onClick={() => setAssignmentFilter('pending')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                  assignmentFilter === 'pending'
+                    ? 'bg-[#202033] text-white'
+                    : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
+                }`}
+              >
+                Pending Due ({assignments.filter(a => a.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setAssignmentFilter('submitted')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                  assignmentFilter === 'submitted'
+                    ? 'bg-[#202033] text-white'
+                    : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
+                }`}
+              >
+                Submitted ({assignments.filter(a => a.status === 'submitted').length})
+              </button>
+              <button
+                onClick={() => setAssignmentFilter('graded')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                  assignmentFilter === 'graded'
+                    ? 'bg-[#202033] text-white'
+                    : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
+                }`}
+              >
+                Graded ({assignments.filter(a => a.status === 'graded').length})
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {assignments.map((asg) => {
+            {filteredAssignments.map((asg) => {
               const isExpanded = expandedAssignmentId === asg.id;
               const mySub = asg.mySubmission;
               const isRecentlySubmitted = submittedStatusMap[asg.id];
@@ -692,7 +772,12 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
                           {asg.courseCode}
                         </span>
                         <span className="text-xs text-[#85858D]">Weightage: {asg.weightagePercent}%</span>
-                        {asg.status === 'submitted' ? (
+                        {asg.status === 'graded' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-[#EAF6EE] text-[#1C6E3E]">
+                            <Award className="w-3.5 h-3.5 mr-1" />
+                            Graded ({asg.mySubmission?.marksObtained}/{asg.totalMarks})
+                          </span>
+                        ) : asg.status === 'submitted' ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-[#EAF6EE] text-[#1C6E3E]">
                             <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                             Submitted
@@ -827,18 +912,31 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
       {/* ========================================================================= */}
       {activeLearnTab === 'timetable' && (
         <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#EEEEEB] gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#EEEEEB] gap-3">
             <div>
               <h3 className="text-base font-bold text-[#20202B]">Weekly Lecture & Classroom Schedule</h3>
-              <p className="text-xs text-[#85858D]">Real-time room routing and scheduling diagnostics</p>
+              <p className="text-xs text-[#85858D]">Real-time room routing, faculty cabin allocations, and scheduling diagnostics</p>
             </div>
-            <span className="text-xs font-medium text-[#20202B] bg-[#F7F7F4] px-3 py-1 rounded-xl border border-[#EEEEEB]">
-              Academic Complex • Dhaula Kuan
-            </span>
+            
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              {['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
+                <button
+                  key={day}
+                  onClick={() => setTimetableDayFilter(day)}
+                  className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                    timetableDayFilter === day
+                      ? 'bg-[#202033] text-white'
+                      : 'bg-[#F7F7F4] text-[#5A5A66] hover:bg-[#EEEEEB]'
+                  }`}
+                >
+                  {day} {day === 'All' ? `(${timetable.length})` : `(${timetable.filter(t => t.day === day).length})`}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {timetable.map((slot) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredTimetable.map((slot) => (
               <div
                 key={slot.id}
                 className="p-4 rounded-xl border border-[#EEEEEB] bg-[#F7F7F4]/40 hover:bg-[#F7F7F4] transition space-y-2 flex flex-col justify-between"
@@ -884,56 +982,544 @@ export const LearnWorkspace: React.FC<LearnWorkspaceProps> = ({ onOpenReportTick
       )}
 
       {/* ========================================================================= */}
-      {/* SUB-WINDOW 5: LEARNING INSIGHTS                                          */}
+      {/* SUB-WINDOW 5: LEARNING INSIGHTS & EXECUTIVE ANALYTICS SUITE              */}
       {/* ========================================================================= */}
       {activeLearnTab === 'insights' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
-            <h3 className="text-base font-bold text-[#20202B]">Weekly Study Hours Breakdown</h3>
-            <p className="text-xs text-[#85858D]">Cohort attendance & weekly study consistency</p>
-            
-            <div className="h-64 flex items-end justify-between gap-4 pt-8 px-4 border-b border-[#EEEEEB]">
-              {[
-                { day: 'Mon', hours: 4.5, pct: 65, isPeak: false },
-                { day: 'Tue', hours: 6.2, pct: 85, isPeak: false },
-                { day: 'Wed', hours: 7.8, pct: 95, isPeak: false },
-                { day: 'Thu', hours: 5.4, pct: 72, isPeak: false },
-                { day: 'Fri', hours: 8.5, pct: 100, isPeak: true },
-                { day: 'Sat', hours: 3.2, pct: 40, isPeak: false },
-                { day: 'Sun', hours: 2.1, pct: 28, isPeak: false },
-              ].map((bar) => (
-                <div key={bar.day} className="flex-1 flex flex-col items-center gap-2 group">
-                  <span className="text-xs font-mono font-medium text-[#85858D]">
-                    {bar.hours}h
-                  </span>
-                  <div className="w-full bg-[#F7F7F4] rounded-t-lg h-44 flex items-end overflow-hidden">
-                    <div
-                      className={`w-full rounded-t-lg transition-all duration-300 ${
-                        bar.isPeak ? 'bg-[#D7F36A]' : 'bg-[#202033]'
-                      }`}
-                      style={{ height: `${bar.pct}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-[#85858D]">{bar.day}</span>
-                </div>
-              ))}
+        <div className="space-y-6">
+          {/* Executive Top Banner */}
+          <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-mono font-bold bg-[#202033] text-[#D7F36A] px-2.5 py-0.5 rounded-md">
+                  TERM IV TELEMETRY
+                </span>
+                <span className="text-xs font-semibold bg-[#EAF6EE] text-[#1C6E3E] px-2.5 py-0.5 rounded-md flex items-center">
+                  <Award className="w-3.5 h-3.5 mr-1" />
+                  Dean's Honor Roll Standing (Top 6.8%)
+                </span>
+                <span className="text-xs text-[#85858D] font-mono">
+                  Cohort Rank #5 of 68
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-[#20202B] pt-1">
+                Executive Academic Performance & Learning Analytics
+              </h2>
+              <p className="text-xs text-[#5A5A66]">
+                Multi-dimensional scholar telemetry, cognitive study distribution, and predictive grade simulations for Aarav Sharma (STD-2035-042)
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                onClick={() => alert('Exporting Certified Term IV Academic Record & Biometric Audit (PDF)...')}
+                className="px-4 py-2.5 bg-[#202033] hover:bg-[#12121E] text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center space-x-2 shadow-xs"
+              >
+                <Download className="w-4 h-4 text-[#D7F36A]" />
+                <span>Export Official Transcript</span>
+              </button>
             </div>
           </div>
 
-          <div className="lg:col-span-4 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
-            <h3 className="text-base font-bold text-[#20202B]">Academic Milestone Targets</h3>
-            <div className="space-y-3 text-xs">
-              <div className="p-4 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB]">
-                <span className="text-[#85858D]">Active LMS Engagement:</span>
-                <div className="text-xl font-bold text-[#20202B] font-mono mt-1">
-                  92.4% <span className="text-xs text-[#1C6E3E] font-medium">(Target: &gt;80%)</span>
+          {/* Top 4 Executive KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Card 1: Cumulative GPA */}
+            <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#85858D]">
+                <span className="font-medium">Cumulative GPA (CGPA)</span>
+                <span className="font-semibold text-[#1C6E3E] bg-[#EAF6EE] px-2 py-0.5 rounded flex items-center">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  +0.06
+                </span>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-bold text-[#20202B] font-mono">3.82</span>
+                <span className="text-xs text-[#85858D] font-mono">/ 4.00</span>
+              </div>
+              <div className="pt-2 border-t border-[#EEEEEB] text-xs text-[#5A5A66] flex items-center justify-between">
+                <span>Cohort Mean: <strong className="font-mono text-[#20202B]">3.42</strong></span>
+                <span className="text-[#1C6E3E] font-medium font-mono">Top 6.8%</span>
+              </div>
+            </div>
+
+            {/* Card 2: Biometric Attendance */}
+            <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#85858D]">
+                <span className="font-medium">Physical Attendance</span>
+                <span className="font-semibold text-[#1C6E3E] bg-[#EAF6EE] px-2 py-0.5 rounded">
+                  Compliant
+                </span>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-bold text-[#20202B] font-mono">92.4%</span>
+                <span className="text-xs text-[#1C6E3E] font-mono">(+17.4% Buffer)</span>
+              </div>
+              <div className="pt-2 border-t border-[#EEEEEB] text-xs text-[#5A5A66] flex items-center justify-between">
+                <span>104 / 112 Sessions</span>
+                <span className="text-[#85858D]">19 Misses Allowed</span>
+              </div>
+            </div>
+
+            {/* Card 3: Degree Credits Earned */}
+            <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#85858D]">
+                <span className="font-medium">Degree Credit Progress</span>
+                <span className="font-semibold text-[#20202B] bg-[#F7F7F4] px-2 py-0.5 rounded border border-[#EEEEEB]">
+                  80.5%
+                </span>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-bold text-[#20202B] font-mono">84.5</span>
+                <span className="text-xs text-[#85858D] font-mono">/ 105.0 Credits</span>
+              </div>
+              <div className="pt-2 border-t border-[#EEEEEB] text-xs text-[#5A5A66] flex items-center justify-between">
+                <span>Term IV: <strong className="text-[#20202B]">21.5 Cr Active</strong></span>
+                <span className="text-[#1C6E3E]">On Track 2027</span>
+              </div>
+            </div>
+
+            {/* Card 4: Evaluation Rate */}
+            <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-3">
+              <div className="flex items-center justify-between text-xs text-[#85858D]">
+                <span className="font-medium">On-Time Evaluation Rate</span>
+                <span className="font-semibold text-[#20202B] bg-[#F7F7F4] px-2 py-0.5 rounded border border-[#EEEEEB]">
+                  Perfect
+                </span>
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-3xl font-bold text-[#20202B] font-mono">100%</span>
+                <span className="text-xs text-[#85858D] font-mono">On-Time</span>
+              </div>
+              <div className="pt-2 border-t border-[#EEEEEB] text-xs text-[#5A5A66] flex items-center justify-between">
+                <span>14 of 14 Deliverables</span>
+                <span className="text-[#85858D]">1.8d Faculty SLA</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Multi-Term CGPA Progression & Benchmark */}
+          <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+              <div>
+                <h3 className="text-base font-bold text-[#20202B]">
+                  Term-by-Term CGPA Progression vs. Cohort Average
+                </h3>
+                <p className="text-xs text-[#85858D]">
+                  Historical academic trajectory across MBA terms compared against cohort mean and Dean's Honor Roll cutoff (3.80)
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-4 text-xs font-medium text-[#5A5A66]">
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-[#202033]" />
+                  <span>Aarav Sharma</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-[#D7F36A]" />
+                  <span>Dean's Cutoff (3.80)</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-[#C5C5D2]" />
+                  <span>Cohort Average</span>
                 </div>
               </div>
-              <div className="p-4 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB]">
-                <span className="text-[#85858D]">Assignment Feedback Turnaround:</span>
-                <div className="text-xl font-bold text-[#20202B] font-mono mt-1">
-                  1.8 Days <span className="text-xs text-[#1C6E3E] font-medium">(Target: &lt;3 Days)</span>
+            </div>
+
+            {/* Progression Chart */}
+            <div className="pt-6 pb-2 border-b border-[#EEEEEB]">
+              <div className="h-56 flex items-end justify-between gap-6 px-4">
+                {STUDENT_ANALYTICS.cgpaProgression.map((item) => {
+                  const studentPct = ((item.gpa - 3.0) / 1.0) * 100;
+                  const cohortPct = ((item.cohortAvg - 3.0) / 1.0) * 100;
+                  const isCurrent = item.term.includes('Current');
+
+                  return (
+                    <div key={item.term} className="flex-1 flex flex-col items-center gap-2 group">
+                      <div className="flex items-center space-x-2 text-xs font-mono font-bold">
+                        <span className="text-[#20202B]">{item.gpa.toFixed(2)}</span>
+                        <span className="text-[11px] text-[#85858D]">({item.cohortAvg.toFixed(2)})</span>
+                      </div>
+
+                      <div className="w-full max-w-[80px] h-40 bg-[#F7F7F4] rounded-t-xl flex items-end justify-center gap-1.5 p-1 relative border-b border-[#EEEEEB]">
+                        {/* Cutoff line reference indicator */}
+                        <div 
+                          className="absolute inset-x-0 border-b-2 border-dashed border-[#D7F36A] pointer-events-none z-10" 
+                          style={{ bottom: `${((3.80 - 3.0) / 1.0) * 100}%` }}
+                        />
+
+                        {/* Student Bar */}
+                        <div
+                          className={`w-6 rounded-t-md transition-all duration-300 relative z-20 ${
+                            isCurrent ? 'bg-[#202033]' : 'bg-[#3A3A52]'
+                          }`}
+                          style={{ height: `${Math.max(studentPct, 15)}%` }}
+                        />
+
+                        {/* Cohort Mean Bar */}
+                        <div
+                          className="w-4 rounded-t-sm bg-[#D5D5DC] transition-all duration-300 relative z-10"
+                          style={{ height: `${Math.max(cohortPct, 10)}%` }}
+                        />
+                      </div>
+
+                      <span className={`text-[11px] font-medium text-center ${isCurrent ? 'font-bold text-[#20202B]' : 'text-[#85858D]'}`}>
+                        {item.term.split(' ')[0]} {item.term.split(' ')[1]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-4 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] flex flex-col md:flex-row md:items-center justify-between text-xs gap-3">
+              <div className="flex items-start space-x-2">
+                <Sparkles className="w-4 h-4 text-[#20202B] shrink-0 mt-0.5" />
+                <span className="text-[#5A5A66]">
+                  <strong>Trajectory Analysis:</strong> Aarav's GPA velocity (+0.06/term) is expanding at 2.4x the cohort rate. Strong performance in Operations Research and Predictive Modeling has pushed cumulative standing across the Dean's Honor Roll benchmark (3.80).
+                </span>
+              </div>
+              <span className="text-xs font-mono font-semibold text-[#20202B] bg-white px-3 py-1 rounded-lg border border-[#EEEEEB] shrink-0">
+                Dean's List Probability: 94.2%
+              </span>
+            </div>
+          </div>
+
+          {/* Section 2: Detailed Course Performance & Grade Breakdown Matrix */}
+          <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+              <div>
+                <h3 className="text-base font-bold text-[#20202B]">
+                  Course-by-Course Grade & Performance Breakdown Matrix
+                </h3>
+                <p className="text-xs text-[#85858D]">
+                  Component-wise continuous evaluation, verified biometric attendance buffer, and cohort percentile ranks
+                </p>
+              </div>
+
+              <span className="text-xs font-mono font-medium text-[#85858D] bg-[#F7F7F4] px-3 py-1.5 rounded-xl border border-[#EEEEEB]">
+                {STUDENT_ANALYTICS.coursePerformance.length} Enrolled Courses
+              </span>
+            </div>
+
+            {/* Comprehensive Data Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#EEEEEB] text-[#85858D] font-semibold bg-[#F7F7F4]/60">
+                    <th className="p-3.5 pl-4 rounded-l-xl">Course & Faculty</th>
+                    <th className="p-3.5">Credits</th>
+                    <th className="p-3.5">Biometric Attendance</th>
+                    <th className="p-3.5">Continuous (50)</th>
+                    <th className="p-3.5">Midterm (50)</th>
+                    <th className="p-3.5">Projected Grade</th>
+                    <th className="p-3.5">Cohort Percentile</th>
+                    <th className="p-3.5 pr-4 rounded-r-xl">Academic Standing</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EEEEEB]">
+                  {STUDENT_ANALYTICS.coursePerformance.map((c) => (
+                    <tr key={c.courseCode} className="hover:bg-[#F7F7F4]/40 transition font-medium">
+                      <td className="p-3.5 pl-4">
+                        <div className="font-bold text-[#20202B] flex items-center space-x-1.5">
+                          <span className="font-mono bg-[#F7F7F4] px-1.5 py-0.5 rounded border border-[#EEEEEB] text-[11px]">
+                            {c.courseCode}
+                          </span>
+                          <span>{c.title}</span>
+                        </div>
+                        <div className="text-[11px] text-[#85858D] mt-0.5">{c.faculty}</div>
+                      </td>
+
+                      <td className="p-3.5 font-mono text-[#20202B] font-semibold">{c.credits.toFixed(1)}</td>
+
+                      <td className="p-3.5">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono font-bold text-[#20202B]">{c.attendance}%</span>
+                          <span className="text-[11px] text-[#1C6E3E] bg-[#EAF6EE] px-1.5 py-0.5 rounded font-mono">
+                            +{c.safeMissBuffer} safe
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="p-3.5 font-mono text-[#20202B]">
+                        <span className="font-bold">{c.continuousMarks}</span>
+                        <span className="text-[#85858D]"> / {c.maxContinuous}</span>
+                      </td>
+
+                      <td className="p-3.5 font-mono text-[#20202B]">
+                        <span className="font-bold">{c.midtermMarks}</span>
+                        <span className="text-[#85858D]"> / {c.maxMidterm}</span>
+                      </td>
+
+                      <td className="p-3.5">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-7 h-7 rounded-lg bg-[#202033] text-white flex items-center justify-center font-mono font-bold text-xs shadow-xs">
+                            {c.projectedGrade}
+                          </span>
+                          <span className="font-mono text-xs text-[#85858D]">({c.gradePoints.toFixed(1)} GP)</span>
+                        </div>
+                      </td>
+
+                      <td className="p-3.5">
+                        <div className="space-y-1">
+                          <div className="flex justify-between font-mono text-[11px]">
+                            <span className="font-bold text-[#20202B]">{c.percentile}th</span>
+                          </div>
+                          <div className="w-20 h-1.5 bg-[#EEEEEB] rounded-full overflow-hidden">
+                            <div className="h-full bg-[#202033] rounded-full" style={{ width: `${c.percentile}%` }} />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="p-3.5 pr-4">
+                        {c.status === 'distinction' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#EAF6EE] text-[#1C6E3E]">
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                            Distinction
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#FEF7EA] text-[#9E5F00]">
+                            <Clock className="w-3.5 h-3.5 mr-1" />
+                            On Track
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 3: Cognitive Study Habits & Time Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Panel 1: Discipline Time Allocation */}
+            <div className="lg:col-span-6 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+              <div className="flex items-center justify-between pb-1">
+                <div>
+                  <h3 className="text-base font-bold text-[#20202B]">
+                    Discipline Time Allocation ({STUDENT_ANALYTICS.studyHabits.weeklyStudyHoursTotal} hrs/week)
+                  </h3>
+                  <p className="text-xs text-[#85858D]">Classroom lectures (18.0h) vs self-directed prep & case labs (20.4h)</p>
                 </div>
+              </div>
+
+              <div className="space-y-3.5 pt-2">
+                {STUDENT_ANALYTICS.studyHabits.disciplineSplit.map((split) => (
+                  <div key={split.discipline} className="space-y-1 text-xs">
+                    <div className="flex justify-between font-medium">
+                      <span className="text-[#20202B] font-semibold">{split.discipline}</span>
+                      <span className="font-mono text-[#85858D]">
+                        {split.hours} hrs ({split.percentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-[#F7F7F4] rounded-full overflow-hidden border border-[#EEEEEB]">
+                      <div
+                        className="h-full rounded-full transition-all duration-300 bg-[#202033]"
+                        style={{ width: `${split.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Panel 2: Weekly Heatmap & Concentration Windows */}
+            <div className="lg:col-span-6 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+              <div className="flex items-center justify-between pb-1">
+                <div>
+                  <h3 className="text-base font-bold text-[#20202B]">Daily Study Rhythm & Cognitive Windows</h3>
+                  <p className="text-xs text-[#85858D]">Peak concentration slots and daily hour distribution</p>
+                </div>
+              </div>
+
+              {/* Day Bars */}
+              <div className="h-32 flex items-end justify-between gap-3 border-b border-[#EEEEEB] pb-2 pt-2">
+                {STUDENT_ANALYTICS.studyHabits.dailyHours.map((d) => (
+                  <div key={d.day} className="flex-1 flex flex-col items-center gap-1.5 group">
+                    <span className="text-[11px] font-mono font-semibold text-[#85858D]">
+                      {d.hours}h
+                    </span>
+                    <div className="w-full bg-[#F7F7F4] rounded-t-lg h-20 flex items-end overflow-hidden">
+                      <div
+                        className={`w-full rounded-t-lg transition-all duration-300 ${
+                          d.peak ? 'bg-[#D7F36A]' : 'bg-[#202033]'
+                        }`}
+                        style={{ height: `${d.pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] font-medium text-[#85858D]">{d.day}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Time of Day Windows */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+                {STUDENT_ANALYTICS.studyHabits.timeOfDayConcentration.map((t) => (
+                  <div key={t.period} className="p-3 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] space-y-1">
+                    <div className="flex items-center justify-between font-semibold text-[#20202B]">
+                      <span className="truncate">{t.period}</span>
+                      <span className="font-mono text-xs">{t.pct}%</span>
+                    </div>
+                    <div className="text-[11px] text-[#85858D]">{t.time}</div>
+                    <div className="text-[11px] text-[#1C6E3E] font-medium">{t.tag}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Core MBA Competencies & Benchmark Matrix */}
+          <div className="bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+              <div>
+                <h3 className="text-base font-bold text-[#20202B]">
+                  Core MBA Management Competencies & Benchmark
+                </h3>
+                <p className="text-xs text-[#85858D]">
+                  Quantitative modeling, strategic decision making, and executive defense skills assessed against IIM cohort baselines
+                </p>
+              </div>
+
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-[#D7F36A] text-[#20202B]">
+                Dean's Mastery Level
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              {STUDENT_ANALYTICS.competencies.map((comp) => {
+                const delta = comp.score - comp.benchmark;
+                return (
+                  <div key={comp.skill} className="p-4 bg-[#F7F7F4]/60 rounded-xl border border-[#EEEEEB] space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-xs text-[#20202B] leading-snug">{comp.skill}</span>
+                      <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-white text-[#20202B] border border-[#EEEEEB] shrink-0">
+                        {comp.level}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="font-bold text-[#20202B]">{comp.score}%</span>
+                        <span className="text-[#85858D]">Cohort Avg: {comp.benchmark}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-[#EEEEEB]">
+                        <div
+                          className="h-full bg-[#202033] rounded-full transition-all duration-300"
+                          style={{ width: `${comp.score}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-[#1C6E3E] font-medium flex items-center">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      <span>+{delta}% above cohort baseline</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section 5: Dean's Honor Roll Simulator & AI Prescriptive Guidance */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Simulator Widget */}
+            <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <Target className="w-4 h-4 text-[#20202B]" />
+                  <h3 className="text-base font-bold text-[#20202B]">Dean's List Target Simulator</h3>
+                </div>
+                <p className="text-xs text-[#85858D]">
+                  Simulate minimum required marks on upcoming deliverables to reach target graduation CGPA
+                </p>
+              </div>
+
+              <div className="p-4 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#5A5A66] font-semibold">Graduation Target CGPA:</span>
+                  <span className="font-mono text-base font-bold text-[#20202B]">{simulatedGpaGoal.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {[3.80, 3.82, 3.85, 3.90].map((goal) => (
+                    <button
+                      key={goal}
+                      onClick={() => setSimulatedGpaGoal(goal)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer ${
+                        simulatedGpaGoal === goal
+                          ? 'bg-[#202033] text-white'
+                          : 'bg-white text-[#5A5A66] border border-[#EEEEEB] hover:bg-[#EEEEEB]'
+                      }`}
+                    >
+                      {goal.toFixed(2)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2.5 text-xs">
+                <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
+                  <span className="text-[#5A5A66]">SM-403 Capstone Strategic Defense:</span>
+                  <strong className="font-mono text-[#20202B]">&ge; 42 / 50 Marks</strong>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
+                  <span className="text-[#5A5A66]">BA-402 Final Time-Series Project:</span>
+                  <strong className="font-mono text-[#20202B]">&ge; 26 / 30 Marks</strong>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-[#EEEEEB] flex items-center justify-between">
+                  <span className="text-[#5A5A66]">QM-406 Optimization Final:</span>
+                  <strong className="font-mono text-[#20202B]">&ge; 43 / 50 Marks</strong>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#EAF6EE] border border-[#268A50]/30 text-xs text-[#1C6E3E] font-medium flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Current trajectory achieves {simulatedGpaGoal.toFixed(2)} target with 94.2% statistical confidence.</span>
+              </div>
+            </div>
+
+            {/* Right: AI Academic Advisory Guidance */}
+            <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-[#EEEEEB] space-y-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-[#20202B]" />
+                  <h3 className="text-base font-bold text-[#20202B]">AI Academic Advisory Insights</h3>
+                </div>
+                <p className="text-xs text-[#85858D]">
+                  Automated performance synthesis calibrated to IIM Sirmaur academic council benchmarks
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {STUDENT_ANALYTICS.aiRecommendations.map((rec) => (
+                  <div key={rec.id} className="p-4 bg-[#F7F7F4] rounded-xl border border-[#EEEEEB] space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-[#20202B]">{rec.title}</h4>
+                      <span className="font-mono text-[11px] text-[#5A5A66] bg-[#EEEEEB] px-2 py-0.5 rounded capitalize">
+                        {rec.type}
+                      </span>
+                    </div>
+                    <p className="text-[#5A5A66] leading-relaxed">
+                      {rec.description}
+                    </p>
+                    <div className="pt-1">
+                      <button
+                        onClick={() => {
+                          if (rec.id === 'rec-1') {
+                            setActiveLearnTab('assignments');
+                          } else if (rec.id === 'rec-2') {
+                            setActiveLearnTab('timetable');
+                          } else {
+                            alert('Downloading Official Biometric Attendance Audit Statement (PDF)...');
+                          }
+                        }}
+                        className="text-xs font-semibold text-[#20202B] hover:underline flex items-center cursor-pointer"
+                      >
+                        <span>{rec.actionText}</span>
+                        <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

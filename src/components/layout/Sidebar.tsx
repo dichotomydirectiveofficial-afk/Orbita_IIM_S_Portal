@@ -37,8 +37,12 @@ export const Sidebar: React.FC = () => {
     openStepUpModal,
     currentUser,
     switchUser,
-    availableUsers
+    availableUsers,
+    courses,
+    assignments
   } = useCockpit();
+
+  const dueAssignmentsCount = assignments.filter(a => a.status === 'pending').length;
 
   return (
     <aside className="w-60 bg-[#202033] text-white flex flex-col h-full shrink-0 select-none border-r border-[#2B2B44]">
@@ -117,14 +121,14 @@ export const Sidebar: React.FC = () => {
               icon={<BookOpen className="w-4 h-4" />}
               label="Courses & Content"
               isActive={activeLearnTab === 'courses'}
-              badge="4"
+              badge={courses.length > 0 ? `${courses.length}` : undefined}
               onClick={() => setActiveLearnTab('courses')}
             />
             <NavItem
               icon={<ClipboardCheck className="w-4 h-4" />}
               label="Assignments"
               isActive={activeLearnTab === 'assignments'}
-              badge="1 Due"
+              badge={dueAssignmentsCount > 0 ? `${dueAssignmentsCount} Due` : undefined}
               onClick={() => setActiveLearnTab('assignments')}
             />
             <NavItem

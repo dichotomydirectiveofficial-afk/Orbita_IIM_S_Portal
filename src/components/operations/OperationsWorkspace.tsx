@@ -41,52 +41,34 @@ export const OperationsWorkspace: React.FC = () => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
-      {/* Top Header & Console Subnav */}
+      {/* View Title & Scope Header */}
       <div className="flex flex-wrap items-center justify-between border-b border-[#EEEEEB] pb-4 gap-3">
-        <div className="flex items-center space-x-2">
-          <OpsTabButton
-            label="Today (Triage)"
-            badge={`${criticalTickets.length + overdueTickets.length} urgent`}
-            badgeColor="rose"
-            isActive={activeOpsTab === 'today'}
-            onClick={() => setActiveOpsTab('today')}
-          />
-          <OpsTabButton
-            label="Control Room Board"
-            isActive={activeOpsTab === 'control_room'}
-            onClick={() => setActiveOpsTab('control_room')}
-          />
-          <OpsTabButton
-            label="Mess Intelligence & Forecasting"
-            badge="Newsvendor"
-            isActive={activeOpsTab === 'mess_intelligence'}
-            onClick={() => setActiveOpsTab('mess_intelligence')}
-          />
-          <OpsTabButton
-            label="Hostel & Facilities"
-            isActive={activeOpsTab === 'hostel'}
-            onClick={() => setActiveOpsTab('hostel')}
-          />
-          <OpsTabButton
-            label="Academic Operations"
-            isActive={activeOpsTab === 'academic'}
-            onClick={() => setActiveOpsTab('academic')}
-          />
-          <OpsTabButton
-            label="2035 KPI Scorecard"
-            badge="Verified"
-            isActive={activeOpsTab === 'kpis'}
-            onClick={() => setActiveOpsTab('kpis')}
-          />
-          <OpsTabButton
-            label="Audit Trail"
-            isActive={activeOpsTab === 'audit_log'}
-            onClick={() => setActiveOpsTab('audit_log')}
-          />
+        <div>
+          <h2 className="text-lg font-bold text-[#20202B]">
+            {activeOpsTab === 'today' && 'Operations Triage & Escalations'}
+            {activeOpsTab === 'control_room' && 'Central Control Room Kanban Board'}
+            {activeOpsTab === 'mess_intelligence' && 'Mess Intelligence & Demand Forecasting'}
+            {activeOpsTab === 'hostel' && 'Hostel & Facilities Asset Oversight'}
+            {activeOpsTab === 'academic' && 'Academic Operations & Room Routing'}
+            {activeOpsTab === 'kpis' && 'IIM Sirmaur 2035 Strategic KPI Scorecard'}
+            {activeOpsTab === 'audit_log' && 'Campus Operations Audit Trail & System Log'}
+          </h2>
+          <p className="text-xs text-[#85858D]">
+            {activeOpsTab === 'today' && 'Real-time incident response, critical alerts, and SLA breach mitigation'}
+            {activeOpsTab === 'control_room' && 'Multi-stage campus ticket pipeline and technician assignment'}
+            {activeOpsTab === 'mess_intelligence' && 'Newsvendor model demand forecasting and food waste mitigation'}
+            {activeOpsTab === 'hostel' && 'Occupancy metrics, block telemetry, and physical plant status'}
+            {activeOpsTab === 'academic' && 'Exam hall logistics, lecture schedule changes, and classroom utilization'}
+            {activeOpsTab === 'kpis' && 'Progress tracking across IIM Sirmaur 2035 institutional targets'}
+            {activeOpsTab === 'audit_log' && 'Tamper-evident record of all dispatch, approval, and governance actions'}
+          </p>
         </div>
 
-        <div className="text-xs text-[#85858D] font-mono">
-          Console Mode: <span className="font-bold text-[#20202B]">{currentUser.adminScope || 'Campus General'}</span>
+        <div className="flex items-center space-x-2 text-xs text-[#85858D] font-mono">
+          <span>Console Scope:</span>
+          <span className="font-bold text-[#20202B] bg-[#EEEEEB] px-2.5 py-1 rounded-lg">
+            {currentUser.adminScope || 'General Operations'}
+          </span>
         </div>
       </div>
 
@@ -566,41 +548,3 @@ export const OperationsWorkspace: React.FC = () => {
     </div>
   );
 };
-
-interface OpsTabButtonProps {
-  label: string;
-  badge?: string;
-  badgeColor?: 'rose' | 'default';
-  isActive: boolean;
-  onClick: () => void;
-}
-
-const OpsTabButton: React.FC<OpsTabButtonProps> = ({ 
-  label, 
-  badge, 
-  badgeColor = 'default', 
-  isActive, 
-  onClick 
-}) => (
-  <button
-    onClick={onClick}
-    className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
-      isActive
-        ? 'bg-[#202033] text-white shadow-xs'
-        : 'text-[#85858D] hover:text-[#20202B] hover:bg-white'
-    }`}
-  >
-    <span>{label}</span>
-    {badge && (
-      <span className={`text-[11px] px-1.5 py-0.2 rounded-md font-mono font-medium ${
-        isActive
-          ? 'bg-[#D7F36A] text-[#20202B]'
-          : badgeColor === 'rose'
-          ? 'bg-[#FDE8E8] text-[#B71C1C]'
-          : 'bg-[#EEEEEB] text-[#5A5A66]'
-      }`}>
-        {badge}
-      </span>
-    )}
-  </button>
-);

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useCockpit } from '../../context/CockpitContext';
-import { Lock, KeyRound, AlertCircle, X, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck, KeyRound, AlertCircle, X, ShieldAlert } from 'lucide-react';
 
 export const AdminStepUpModal: React.FC = () => {
-  const { isStepUpModalOpen, closeStepUpModal, performStepUpLogin, currentUser } = useCockpit();
-  const [passphrase, setPassphrase] = useState<string>('sirmaur2035');
-  const [totpCode, setTotpCode] = useState<string>('203501');
+  const { isStepUpModalOpen, closeStepUpModal, performStepUpLogin } = useCockpit();
+  const [adminPassId, setAdminPassId] = useState<string>('ADM-2035-SIRMAUR');
+  const [passcode, setPasscode] = useState<string>('2035');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -17,24 +17,18 @@ export const AdminStepUpModal: React.FC = () => {
     setIsSubmitting(true);
 
     setTimeout(() => {
-      const res = performStepUpLogin(passphrase, totpCode);
+      const res = performStepUpLogin(adminPassId, passcode);
       setIsSubmitting(false);
       if (!res.success) {
-        setErrorMessage(res.error || 'Authentication failed. Please verify credentials.');
+        setErrorMessage(res.error || 'Authorization failed. Please verify credentials.');
       }
-    }, 400);
-  };
-
-  const fillDemoCredentials = () => {
-    setPassphrase('sirmaur2035');
-    setTotpCode('203501');
-    setErrorMessage('');
+    }, 300);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="relative w-full max-w-md bg-white rounded-2xl border border-[#EEEEEB] shadow-xl overflow-hidden">
-        {/* Modal Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+      <div className="relative w-full max-w-md bg-white rounded-2xl border border-[#EEEEEB] shadow-2xl overflow-hidden">
+        {/* Header */}
         <div className="relative bg-[#202033] text-white p-6 pb-5">
           <button
             onClick={closeStepUpModal}
@@ -49,23 +43,9 @@ export const AdminStepUpModal: React.FC = () => {
               <ShieldAlert className="w-5 h-5 text-[#D7F36A]" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight">Step-Up Authentication</h3>
-              <p className="text-xs text-[#8E8EA0]">Level 2 operational security elevation</p>
+              <h3 className="text-base font-bold text-white tracking-tight">Administrative Authorization Pass</h3>
+              <p className="text-xs text-[#8E8EA0]">Restricted Operations Console Clearance</p>
             </div>
-          </div>
-        </div>
-
-        {/* User Scope Banner */}
-        <div className="bg-[#F7F7F4] border-b border-[#EEEEEB] px-6 py-3 text-xs flex items-center justify-between">
-          <div>
-            <span className="text-[#85858D]">Operating Identity: </span>
-            <span className="font-semibold text-[#20202B]">{currentUser.name}</span>
-          </div>
-          <div className="text-right">
-            <span className="text-[#85858D]">Scope: </span>
-            <span className="font-semibold text-[#20202B] bg-white px-2 py-0.5 rounded border border-[#EEEEEB]">
-              {currentUser.adminScope || 'General Operations'}
-            </span>
           </div>
         </div>
 
@@ -80,26 +60,7 @@ export const AdminStepUpModal: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-[#20202B] mb-1">
-              Admin Passphrase
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#85858D]">
-                <Lock className="w-4 h-4" />
-              </div>
-              <input
-                type="password"
-                value={passphrase}
-                onChange={(e) => setPassphrase(e.target.value)}
-                placeholder="Enter admin passphrase"
-                className="w-full pl-9 pr-3.5 py-2 text-xs bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl text-[#20202B] focus:bg-white focus:outline-hidden focus:border-[#20202B] transition"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[#20202B] mb-1">
-              Second Factor (TOTP Authenticator Code)
+              Admin Authorization ID Pass
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#85858D]">
@@ -107,32 +68,32 @@ export const AdminStepUpModal: React.FC = () => {
               </div>
               <input
                 type="text"
-                maxLength={6}
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-                placeholder="6-digit code (e.g. 203501)"
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-mono tracking-widest bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl text-[#20202B] focus:bg-white focus:outline-hidden focus:border-[#20202B] transition"
+                value={adminPassId}
+                onChange={(e) => setAdminPassId(e.target.value)}
+                placeholder="e.g. ADM-2035-SIRMAUR"
+                className="w-full pl-9 pr-3.5 py-2.5 text-xs font-mono font-bold bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl text-[#20202B] focus:bg-white focus:outline-hidden focus:border-[#20202B] transition"
                 required
               />
             </div>
-            <p className="text-[11px] text-[#85858D] mt-1">
-              Sent to registered authenticator device. 30-minute idle session timeout applies.
-            </p>
           </div>
 
-          {/* Quick Demo Autofill Pill */}
-          <div className="p-3 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] text-xs text-[#5A5A66] flex items-center justify-between">
-            <div>
-              <span className="font-semibold text-[#20202B]">Demo Credentials:</span>
-              <div className="font-mono text-[11px] text-[#85858D]">Pass: <code className="text-[#20202B] font-bold">sirmaur2035</code> | 2FA: <code className="text-[#20202B] font-bold">203501</code></div>
+          <div>
+            <label className="block text-xs font-semibold text-[#20202B] mb-1">
+              Security Passcode / PIN
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#85858D]">
+                <Lock className="w-4 h-4" />
+              </div>
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="Enter 4-to-6 digit security PIN"
+                className="w-full pl-9 pr-3.5 py-2.5 text-xs font-mono tracking-widest bg-[#F7F7F4] border border-[#EEEEEB] rounded-xl text-[#20202B] focus:bg-white focus:outline-hidden focus:border-[#20202B] transition"
+                required
+              />
             </div>
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-[11px] font-semibold text-[#20202B] hover:underline bg-white px-2.5 py-1 rounded-lg border border-[#EEEEEB] cursor-pointer"
-            >
-              Autofill
-            </button>
           </div>
 
           <div className="pt-2 flex items-center justify-end space-x-3">
@@ -146,14 +107,14 @@ export const AdminStepUpModal: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#202033] hover:bg-[#12121E] rounded-xl transition flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-[#202033] hover:bg-[#12121E] rounded-xl transition flex items-center space-x-2 cursor-pointer disabled:opacity-50 shadow-xs"
             >
               {isSubmitting ? (
-                <span>Verifying...</span>
+                <span>Verifying Pass...</span>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4 text-[#D7F36A]" />
-                  <span>Verify & Enter Admin Mode</span>
+                  <span>Authorize & Enter Console</span>
                 </>
               )}
             </button>

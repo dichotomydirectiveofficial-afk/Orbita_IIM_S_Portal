@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { useCockpit } from '../../context/CockpitContext';
 import { 
-  Wrench, 
-  UtensilsCrossed, 
-  Package, 
-  BellRing, 
-  Zap, 
-  HelpCircle, 
   Plus, 
   Clock, 
   CheckCircle2, 
@@ -23,7 +17,6 @@ interface CampusWorkspaceProps {
 export const CampusWorkspace: React.FC<CampusWorkspaceProps> = ({ onOpenReportTicket }) => {
   const { 
     activeCampusTab, 
-    setActiveCampusTab, 
     tickets, 
     confirmTicketResolution, 
     mealSlots, 
@@ -52,65 +45,10 @@ export const CampusWorkspace: React.FC<CampusWorkspaceProps> = ({ onOpenReportTi
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
-      {/* Tab Selector */}
-      <div className="flex flex-wrap items-center justify-between border-b border-[#EEEEEB] pb-4 gap-3">
-        <div className="flex items-center space-x-2">
-          <CampusTabButton
-            icon={<Wrench className="w-3.5 h-3.5" />}
-            label="Control Room Tickets"
-            count={tickets.filter(t => t.state !== 'Closed').length}
-            isActive={activeCampusTab === 'tickets'}
-            onClick={() => setActiveCampusTab('tickets')}
-          />
-          <CampusTabButton
-            icon={<UtensilsCrossed className="w-3.5 h-3.5" />}
-            label="Mess Operations"
-            isActive={activeCampusTab === 'mess'}
-            onClick={() => setActiveCampusTab('mess')}
-          />
-          <CampusTabButton
-            icon={<Package className="w-3.5 h-3.5" />}
-            label="Parcels & Courier"
-            count={parcels.filter(p => p.status === 'ready_for_pickup').length}
-            isActive={activeCampusTab === 'parcels'}
-            onClick={() => setActiveCampusTab('parcels')}
-          />
-          <CampusTabButton
-            icon={<BellRing className="w-3.5 h-3.5" />}
-            label="Campus Alerts"
-            count={alerts.length}
-            isActive={activeCampusTab === 'alerts'}
-            onClick={() => setActiveCampusTab('alerts')}
-          />
-          <CampusTabButton
-            icon={<Zap className="w-3.5 h-3.5" />}
-            label="Energy & Utilities"
-            isActive={activeCampusTab === 'utilities'}
-            onClick={() => setActiveCampusTab('utilities')}
-          />
-          <CampusTabButton
-            icon={<HelpCircle className="w-3.5 h-3.5" />}
-            label="Helpdesk FAQ"
-            isActive={activeCampusTab === 'services'}
-            onClick={() => setActiveCampusTab('services')}
-          />
-        </div>
-
-        {activeCampusTab === 'tickets' && (
-          <button
-            onClick={() => onOpenReportTicket()}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-[#202033] hover:bg-[#12121E] text-white rounded-xl text-xs font-semibold transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-[#D7F36A]" />
-            <span>Report an Issue</span>
-          </button>
-        )}
-      </div>
-
       {/* Tab: Control Room Ticketing */}
       {activeCampusTab === 'tickets' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-[#20202B]">Active Campus Tickets and SLA Status</h3>
               <p className="text-xs text-[#85858D]">
@@ -118,31 +56,40 @@ export const CampusWorkspace: React.FC<CampusWorkspaceProps> = ({ onOpenReportTi
               </p>
             </div>
             
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="text-[#85858D] font-medium">Filter:</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div className="flex items-center space-x-1.5 bg-[#F7F7F4] p-1 rounded-xl border border-[#EEEEEB]">
+                <button
+                  onClick={() => setTicketFilter('all')}
+                  className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                    ticketFilter === 'all' ? 'bg-[#202033] text-white shadow-xs' : 'text-[#5A5A66] hover:text-[#20202B]'
+                  }`}
+                >
+                  All ({tickets.length})
+                </button>
+                <button
+                  onClick={() => setTicketFilter('open')}
+                  className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                    ticketFilter === 'open' ? 'bg-[#202033] text-white shadow-xs' : 'text-[#5A5A66] hover:text-[#20202B]'
+                  }`}
+                >
+                  Open / Active ({tickets.filter(t => t.state !== 'Closed' && t.state !== 'Resolved').length})
+                </button>
+                <button
+                  onClick={() => setTicketFilter('resolved')}
+                  className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                    ticketFilter === 'resolved' ? 'bg-[#202033] text-white shadow-xs' : 'text-[#5A5A66] hover:text-[#20202B]'
+                  }`}
+                >
+                  Resolved ({tickets.filter(t => t.state === 'Resolved' || t.state === 'Closed').length})
+                </button>
+              </div>
+
               <button
-                onClick={() => setTicketFilter('all')}
-                className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
-                  ticketFilter === 'all' ? 'bg-[#202033] text-white' : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
-                }`}
+                onClick={() => onOpenReportTicket()}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-[#202033] hover:bg-[#12121E] text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs"
               >
-                All ({tickets.length})
-              </button>
-              <button
-                onClick={() => setTicketFilter('open')}
-                className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
-                  ticketFilter === 'open' ? 'bg-[#202033] text-white' : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
-                }`}
-              >
-                Open / In Progress
-              </button>
-              <button
-                onClick={() => setTicketFilter('resolved')}
-                className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
-                  ticketFilter === 'resolved' ? 'bg-[#202033] text-white' : 'bg-white text-[#5A5A66] border border-[#EEEEEB]'
-                }`}
-              >
-                Resolved / Closed
+                <Plus className="w-4 h-4 text-[#D7F36A]" />
+                <span>Report an Issue</span>
               </button>
             </div>
           </div>
@@ -594,30 +541,3 @@ export const CampusWorkspace: React.FC<CampusWorkspaceProps> = ({ onOpenReportTi
     </div>
   );
 };
-
-interface CampusTabButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  count?: number;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-const CampusTabButton: React.FC<CampusTabButtonProps> = ({ icon, label, count, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
-      isActive
-        ? 'bg-[#202033] text-white shadow-xs'
-        : 'text-[#85858D] hover:text-[#20202B] hover:bg-white'
-    }`}
-  >
-    <span>{icon}</span>
-    <span>{label}</span>
-    {count !== undefined && count > 0 && (
-      <span className={`text-[11px] px-1.5 py-0.2 rounded-md font-mono ${isActive ? 'bg-[#D7F36A] text-[#20202B]' : 'bg-[#EEEEEB] text-[#5A5A66]'}`}>
-        {count}
-      </span>
-    )}
-  </button>
-);

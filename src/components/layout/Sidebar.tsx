@@ -36,8 +36,6 @@ export const Sidebar: React.FC = () => {
     isAdminMode,
     openStepUpModal,
     currentUser,
-    switchUser,
-    availableUsers,
     courses,
     assignments
   } = useCockpit();
@@ -248,33 +246,34 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* User profile & Persona switcher at bottom */}
+      {/* Authenticated Scholar Profile (No dropdown list) */}
       <div className="p-3 border-t border-[#2C2C42] bg-[#1B1B2C]">
-        <div className="flex items-center space-x-3 mb-2 px-1">
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.name}
-            className="w-8 h-8 rounded-lg object-cover border border-[#3A3A54]"
-          />
+        <div className="flex items-center space-x-3 px-1">
+          <div className="relative shrink-0">
+            <img
+              src={currentUser.avatar}
+              alt={currentUser.name}
+              className="w-9 h-9 rounded-xl object-cover border border-[#3A3A54]"
+            />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#1B1B2C] ${
+              isAdminMode ? 'bg-[#268A50]' : 'bg-[#D7F36A]'
+            }`} />
+          </div>
+
           <div className="flex-1 min-w-0">
             <div className="text-xs font-semibold text-white truncate">{currentUser.name}</div>
-            <div className="text-[11px] text-[#8E8EA0] truncate">{currentUser.roleName.split('(')[0]}</div>
+            <div className="text-[11px] text-[#8E8EA0] truncate font-mono">
+              {currentUser.studentId || currentUser.staffId || 'STD-2035-042'}
+            </div>
           </div>
         </div>
 
-        <div className="relative mt-2">
-          <select
-            value={currentUser.id}
-            onChange={(e) => switchUser(e.target.value)}
-            className="w-full text-xs font-medium bg-[#2B2B44] border border-[#3A3A54] text-white py-1.5 pl-2.5 pr-7 rounded-lg focus:outline-hidden appearance-none cursor-pointer"
-          >
-            {availableUsers.map((u) => (
-              <option key={u.id} value={u.id} className="bg-[#202033] text-white">
-                {u.name} ({u.role})
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-[#8E8EA0] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="mt-2.5 px-2 py-1 rounded-lg bg-[#242438] border border-[#2F2F48] flex items-center justify-between text-[11px]">
+          <span className="text-[#8E8EA0] font-mono">Session</span>
+          <span className="text-[#D7F36A] font-medium flex items-center space-x-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#D7F36A]" />
+            <span>{isAdminMode ? 'Admin Active' : 'Verified Student'}</span>
+          </span>
         </div>
       </div>
     </aside>

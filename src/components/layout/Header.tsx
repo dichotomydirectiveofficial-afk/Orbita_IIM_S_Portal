@@ -42,11 +42,11 @@ export const Header: React.FC = () => {
       {/* Action Controls & Profile */}
       <div className="flex items-center space-x-3 shrink-0">
         {/* Switch to Admin Mode button */}
-        {currentUser.isAdminEligible && !isAdminMode && (
+        {!isAdminMode && (
           <button
             onClick={openStepUpModal}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#20202B] bg-[#F7F7F4] hover:bg-[#EEEEEB] border border-[#EEEEEB] transition cursor-pointer"
-            title="Authenticate to access the Operations Console"
+            title="Authenticate with Admin ID Pass to access Operations"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-[#20202B]" />
             <span className="hidden sm:inline">Admin Mode</span>

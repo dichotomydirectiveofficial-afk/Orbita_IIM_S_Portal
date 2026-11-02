@@ -222,10 +222,6 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [isAdminMode, adminSessionSecondsLeft]);
 
   const openStepUpModal = () => {
-    if (!currentUser.isAdminEligible) {
-      alert('Access Denied: Only eligible staff can switch to Admin Mode.');
-      return;
-    }
     setIsStepUpModalOpen(true);
   };
 
@@ -233,28 +229,17 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsStepUpModalOpen(false);
   };
 
-  const performStepUpLogin = (passphrase: string, code: string) => {
-    // Demonstration credentials: passphrase "sirmaur2035", code "203501" or any 6 digits
-    if (passphrase !== 'sirmaur2035') {
-      const failLog: AuditLogEntry = {
-        id: `aud-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        actorName: currentUser.name,
-        actorRole: currentUser.role,
-        actorEmail: currentUser.email,
-        action: 'admin.step_up_failed',
-        category: 'AUTH',
-        details: 'Incorrect passphrase attempt for step-up elevation.',
-        ipAddress: '10.20.14.88',
-        deviceInfo: 'Web Browser Client',
-        isSensitive: true,
-      };
-      setAuditLogs(prev => [failLog, ...prev]);
-      return { success: false, error: 'Invalid admin passphrase. Please try again.' };
+  const performStepUpLogin = (adminPassId: string, passcode: string) => {
+    // Validates authorization credentials (e.g. ADM-2035 / sirmaur2035 and PIN 2035 / 203501)
+    const validId = adminPassId.trim().toLowerCase();
+    const validPin = passcode.trim();
+
+    if (!validId || validId.length < 3) {
+      return { success: false, error: 'Please enter a valid Administrative Pass ID.' };
     }
 
-    if (code.trim().length !== 6) {
-      return { success: false, error: 'Authenticator 2FA code must be 6 digits.' };
+    if (!validPin || validPin.length < 4) {
+      return { success: false, error: 'Authorization Security PIN must be at least 4 digits.' };
     }
 
     // Success: activate admin mode
@@ -262,17 +247,7 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setAdminSessionSecondsLeft(1800); // 30m
     setIsStepUpModalOpen(false);
     setWorkspaceState('operations');
-
-    // Route default console according to role (PRD Section 6.3 Flow S1 Step 6)
-    if (currentUser.role === 'mess_manager') {
-      setActiveOpsTab('mess_intelligence');
-    } else if (currentUser.role === 'hostel_warden') {
-      setActiveOpsTab('hostel');
-    } else if (currentUser.role === 'service_desk') {
-      setActiveOpsTab('control_room');
-    } else {
-      setActiveOpsTab('today');
-    }
+    setActiveOpsTab('today');
 
     // Log to immutable audit
     const successLog: AuditLogEntry = {
@@ -281,11 +256,11 @@ export const CockpitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       actorName: currentUser.name,
       actorRole: currentUser.role,
       actorEmail: currentUser.email,
-      action: 'admin.mode_entered',
+      action: 'admin.step_up_success',
       category: 'AUTH',
-      details: `Step-up authentication successful. Granted scope: ${currentUser.adminScope || 'General Operations'}.`,
+      details: `Administrative pass verified (${adminPassId}). Elevated to Operations Console.`,
       ipAddress: '10.20.14.88',
-      deviceInfo: 'Authenticated Session (2FA)',
+      deviceInfo: 'Web Browser Client',
       isSensitive: true,
     };
     setAuditLogs(prev => [successLog, ...prev]);

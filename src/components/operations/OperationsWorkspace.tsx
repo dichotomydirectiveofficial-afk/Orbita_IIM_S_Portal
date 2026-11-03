@@ -53,19 +53,31 @@ export const OperationsWorkspace: React.FC = () => {
     new Map([...criticalTickets, ...overdueTickets].map(t => [t.id, t])).values()
   );
 
+  // Selected meal shift for kitchen production planning (defaults to Dinner)
+  const [selectedMealSlotId, setSelectedMealSlotId] = useState<string>('dinner');
+  const selectedSlot = mealSlots.find(s => s.id === selectedMealSlotId) || mealSlots[3];
+
   // Daily Kitchen Production Planning Sheet computations (Reactive to Skip Meal & Tuner Sliders)
   const enrolledDiners = 500;
-  const declaredSkips = mealSlots.reduce((sum, slot) => sum + slot.skippedCount, 0);
+  const declaredSkips = selectedSlot.skippedCount;
   const netConfirmedDemand = Math.max(0, enrolledDiners - declaredSkips);
-  const smoothedDemand = Math.round(simAlpha * netConfirmedDemand + (1 - simAlpha) * 460);
-  const plannedQuantity = Math.round(smoothedDemand * (1 + simBuffer / 100));
+
+  // Exponential Smoothing on past historical dinners (At = 450 actuals served, Ft = 455 prior forecast)
+  const yesterdayActualServed = wasteRecords[wasteRecords.length - 1]?.mealsServed || 450;
+  const priorPeriodForecast = wasteRecords[wasteRecords.length - 2]?.mealsServed || 455;
+  const smoothedDemand = Math.round(simAlpha * yesterdayActualServed + (1 - simAlpha) * priorPeriodForecast);
+
+  // Calibrated expected demand: combining the time-series trend with today's live skip census
+  // Pre-booked skips provide an explicit ceiling so kitchen never over-prepares when students opt out
+  const calibratedDemand = Math.min(smoothedDemand, netConfirmedDemand);
+  const plannedQuantity = Math.round(calibratedDemand * (1 + simBuffer / 100));
   const batch1Target = Math.round(plannedQuantity * 0.75); // 75% pre-service cooking target
   const batch2Reserve = plannedQuantity - batch1Target;     // 25% postponement reserve
 
   // 3-Tier Newsvendor sizing
-  const coreTierPortions = Math.round(plannedQuantity * 1.0);
-  const committedPremiumPortions = Math.round(netConfirmedDemand * 0.85 * (1 + (simBuffer / 100) * 0.5));
-  const liveFinishingPortions = Math.round(plannedQuantity * 0.4);
+  const coreTierPortions = plannedQuantity;
+  const committedPremiumPortions = Math.min(plannedQuantity, netConfirmedDemand);
+  const liveFinishingPortions = Math.round(calibratedDemand * 0.4);
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-6">
@@ -387,12 +399,27 @@ export const OperationsWorkspace: React.FC = () => {
                   <h4 className="text-sm font-bold text-[#20202B]">Daily Kitchen Production Planning Sheet</h4>
                 </div>
                 <p className="text-xs text-[#85858D] mt-0.5">
-                  Dynamic coupling: Student meal skip declarations feed real-time Newsvendor batches and postponement triggers
+                  Dynamic coupling: Real-time skip declarations offset time-series forecast to prevent plate dumping
                 </p>
               </div>
-              <span className="text-xs font-mono font-semibold bg-[#202033] text-[#D7F36A] px-3 py-1 rounded-xl self-start sm:self-auto">
-                Shift: Lunch & Dinner Operations
-              </span>
+
+              {/* Shift Selector */}
+              <div className="flex flex-wrap items-center gap-1.5 bg-[#F7F7F4] p-1 rounded-xl border border-[#EEEEEB] text-xs font-medium self-start sm:self-auto">
+                <span className="text-[#85858D] text-[11px] font-semibold px-2">Shift:</span>
+                {mealSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    onClick={() => setSelectedMealSlotId(slot.id)}
+                    className={`px-3 py-1 rounded-lg transition font-medium cursor-pointer ${
+                      selectedMealSlotId === slot.id
+                        ? 'bg-[#202033] text-[#D7F36A] font-bold shadow-xs'
+                        : 'text-[#5A5A66] hover:text-[#20202B] hover:bg-white'
+                    }`}
+                  >
+                    {slot.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Top 5 Planning Metrics */}
@@ -406,19 +433,19 @@ export const OperationsWorkspace: React.FC = () => {
               <div className="p-4 rounded-xl bg-[#FEF7EA] border border-[#C27803]/30 space-y-1">
                 <span className="text-[11px] text-[#9E5F00] font-medium">Declared Skips</span>
                 <div className="text-2xl font-bold font-mono text-[#9E5F00]">-{declaredSkips}</div>
-                <p className="text-[11px] text-[#9E5F00]">Live skip declarations</p>
+                <p className="text-[11px] text-[#9E5F00]">{selectedSlot.name} live skips</p>
               </div>
 
               <div className="p-4 rounded-xl bg-[#EAF6EE] border border-[#268A50]/30 space-y-1">
                 <span className="text-[11px] text-[#1C6E3E] font-medium">Net Confirmed Demand</span>
                 <div className="text-2xl font-bold font-mono text-[#1C6E3E]">{netConfirmedDemand}</div>
-                <p className="text-[11px] text-[#1C6E3E]">500 − {declaredSkips} diners</p>
+                <p className="text-[11px] text-[#1C6E3E]">{enrolledDiners} − {declaredSkips} diners</p>
               </div>
 
               <div className="p-4 rounded-xl bg-[#F7F7F4] border border-[#EEEEEB] space-y-1">
                 <span className="text-[11px] text-[#85858D] font-medium">Smoothed Base (F<sub>t+1</sub>)</span>
                 <div className="text-2xl font-bold font-mono text-[#20202B]">{smoothedDemand}</div>
-                <p className="text-[11px] text-[#85858D]">&alpha; = {simAlpha} blend</p>
+                <p className="text-[11px] text-[#85858D]">&alpha; = {simAlpha} (from {yesterdayActualServed} actuals)</p>
               </div>
 
               <div className="p-4 rounded-xl bg-[#202033] text-white border border-[#2B2B44] space-y-1 col-span-2 md:col-span-1">
@@ -471,7 +498,7 @@ export const OperationsWorkspace: React.FC = () => {
                     <div className="h-full bg-[#D7F36A] rounded-full" style={{ width: '25%' }} />
                   </div>
                   <p className="text-xs text-[#5A5A66] leading-relaxed">
-                    Held in raw prep stage in cold holding. Triggered for live finishing at 13:10 only if remaining diners count exceeds Batch 1 residual servings.
+                    Held in raw prep stage in cold holding. Triggered for live finishing midway through service only if remaining diners count exceeds Batch 1 residual servings.
                   </p>
                 </div>
               </div>
@@ -485,7 +512,7 @@ export const OperationsWorkspace: React.FC = () => {
                     3-Tier Newsvendor Dish Sizing & Critical Ratio Alignment
                   </h5>
                   <p className="text-xs text-[#85858D]">
-                    Matches stockout risk against overage costs dish by dish
+                    Matches stockout risk against overage costs dish by dish for {selectedSlot.name} ({selectedSlot.timing})
                   </p>
                 </div>
               </div>
@@ -499,8 +526,8 @@ export const OperationsWorkspace: React.FC = () => {
                       CR = 0.909
                     </span>
                   </div>
-                  <div className="text-[11px] text-[#85858D]">
-                    Rice, Yellow Dal Tadka, Phulkas, Seasonal Mixed Sabzi
+                  <div className="text-[11px] text-[#85858D] truncate">
+                    {selectedSlot.items.slice(1, 4).join(', ') || 'Steamed Rice, Yellow Dal, Phulkas'}
                   </div>
                   <div className="p-2.5 bg-[#F7F7F4] rounded-lg border border-[#EEEEEB] space-y-1">
                     <div className="flex justify-between">
@@ -529,8 +556,8 @@ export const OperationsWorkspace: React.FC = () => {
                       CR = 0.727
                     </span>
                   </div>
-                  <div className="text-[11px] text-[#85858D]">
-                    Paneer Tikka Masala / Murgh Curry / Sweet Dish
+                  <div className="text-[11px] text-[#85858D] truncate">
+                    {selectedSlot.items[0]} (Specialty Course)
                   </div>
                   <div className="p-2.5 bg-[#F7F7F4] rounded-lg border border-[#EEEEEB] space-y-1">
                     <div className="flex justify-between">
